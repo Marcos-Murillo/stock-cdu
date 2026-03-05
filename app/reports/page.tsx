@@ -37,10 +37,20 @@ export default function ReportsPage() {
     returnedLoans: loans.filter((loan) => loan.status === "returned").length,
   }
 
-  const groupStats = loans.reduce(
+  const facultadStats = loans.reduce(
+    (acc, loan) => {
+      if (loan.status === "active" && loan.facultad) {
+        acc[loan.facultad] = (acc[loan.facultad] || 0) + 1
+      }
+      return acc
+    },
+    {} as Record<string, number>,
+  )
+
+  const generoStats = loans.reduce(
     (acc, loan) => {
       if (loan.status === "active") {
-        acc[loan.culturalGroup] = (acc[loan.culturalGroup] || 0) + 1
+        acc[loan.genero] = (acc[loan.genero] || 0) + 1
       }
       return acc
     },
@@ -54,7 +64,7 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-lime-50 to-lime-100">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
         <Navigation />
         <div className="container mx-auto px-4 py-8">
           <div className="text-center">Cargando reportes...</div>
@@ -64,29 +74,29 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-lime-50 to-lime-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
       <Navigation />
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-lime-800 mb-2">Reportes y Estadísticas</h1>
-          <p className="text-lime-700">Resumen del estado del inventario cultural</p>
+          <h1 className="text-3xl font-bold text-blue-800 mb-2">Reportes y Estadísticas</h1>
+          <p className="text-blue-700">Resumen del estado del inventario deportivo</p>
         </div>
 
         {/* Estadísticas Generales */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card className="border-lime-200">
+          <Card className="border-blue-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-lime-800">Total Elementos</CardTitle>
-              <Package className="h-4 w-4 text-lime-600" />
+              <CardTitle className="text-sm font-medium text-blue-800">Total Elementos</CardTitle>
+              <Package className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-lime-800">{stats.totalItems}</div>
+              <div className="text-2xl font-bold text-blue-800">{stats.totalItems}</div>
             </CardContent>
           </Card>
 
-          <Card className="border-lime-200">
+          <Card className="border-blue-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-lime-800">Disponibles</CardTitle>
+              <CardTitle className="text-sm font-medium text-blue-800">Disponibles</CardTitle>
               <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
@@ -94,9 +104,9 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-lime-200">
+          <Card className="border-blue-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-lime-800">Prestados</CardTitle>
+              <CardTitle className="text-sm font-medium text-blue-800">Prestados</CardTitle>
               <Users className="h-4 w-4 text-orange-600" />
             </CardHeader>
             <CardContent>
@@ -104,9 +114,9 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-lime-200">
+          <Card className="border-blue-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-lime-800">Devoluciones</CardTitle>
+              <CardTitle className="text-sm font-medium text-blue-800">Devoluciones</CardTitle>
               <BarChart3 className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
@@ -116,85 +126,113 @@ export default function ReportsPage() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Préstamos por Grupo Cultural */}
-          <Card className="border-lime-200">
+          {/* Préstamos por Facultad */}
+          <Card className="border-blue-200">
             <CardHeader>
-              <CardTitle className="text-lime-800">Préstamos por Grupo Cultural</CardTitle>
+              <CardTitle className="text-blue-800">Préstamos por Facultad</CardTitle>
               <CardDescription>Elementos actualmente prestados</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {Object.entries(groupStats)
+                {Object.entries(facultadStats)
                   .sort(([, a], [, b]) => b - a)
                   .slice(0, 8)
-                  .map(([group, count]) => (
-                    <div key={group} className="flex items-center justify-between">
+                  .map(([facultad, count]) => (
+                    <div key={facultad} className="flex items-center justify-between">
                       <span className="text-sm text-gray-700 flex-1 pr-2">
-                        {group.length > 50 ? `${group.substring(0, 50)}...` : group}
+                        {facultad.length > 40 ? `${facultad.substring(0, 40)}...` : facultad}
                       </span>
-                      <Badge variant="secondary" className="bg-lime-100 text-lime-800">
+                      <Badge variant="secondary" className="bg-blue-100 text-blue-800">
                         {count}
                       </Badge>
                     </div>
                   ))}
-                {Object.keys(groupStats).length === 0 && (
-                  <p className="text-gray-500 text-center py-4">No hay préstamos activos</p>
+                {Object.keys(facultadStats).length === 0 && (
+                  <p className="text-gray-500 text-center py-4">No hay préstamos activos por facultad</p>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Préstamos Recientes */}
-          <Card className="border-lime-200">
+          {/* Préstamos por Género */}
+          <Card className="border-blue-200">
             <CardHeader>
-              <CardTitle className="text-lime-800">Préstamos Recientes</CardTitle>
-              <CardDescription>Últimos 5 préstamos activos</CardDescription>
+              <CardTitle className="text-blue-800">Préstamos por Género</CardTitle>
+              <CardDescription>Distribución de préstamos activos</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentLoans.map((loan) => (
-                  <div
-                    key={loan.id}
-                    className="flex items-center justify-between p-3 border border-lime-100 rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <h4 className="font-medium text-lime-800">{loan.itemName}</h4>
-                      <p className="text-sm text-gray-600">{loan.borrowerName}</p>
-                      <p className="text-xs text-gray-500">{loan.loanDate.toLocaleDateString()}</p>
+              <div className="space-y-3">
+                {Object.entries(generoStats)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([genero, count]) => (
+                    <div key={genero} className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700 flex-1 pr-2">{genero}</span>
+                      <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                        {count}
+                      </Badge>
                     </div>
-                    <Badge className="bg-orange-100 text-orange-800">Activo</Badge>
-                  </div>
-                ))}
-                {recentLoans.length === 0 && (
-                  <p className="text-gray-500 text-center py-4">No hay préstamos recientes</p>
+                  ))}
+                {Object.keys(generoStats).length === 0 && (
+                  <p className="text-gray-500 text-center py-4">No hay préstamos activos</p>
                 )}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Estado del Inventario */}
-        <Card className="mt-6 border-lime-200">
+        {/* Préstamos Recientes */}
+        <Card className="mt-6 border-blue-200">
           <CardHeader>
-            <CardTitle className="text-lime-800">Estado del Inventario</CardTitle>
+            <CardTitle className="text-blue-800">Préstamos Recientes</CardTitle>
+            <CardDescription>Últimos 5 préstamos activos</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {recentLoans.map((loan) => (
+                <div
+                  key={loan.id}
+                  className="flex items-center justify-between p-3 border border-blue-100 rounded-lg"
+                >
+                  <div className="flex-1">
+                    <h4 className="font-medium text-blue-800">{loan.itemName}</h4>
+                    <p className="text-sm text-gray-600">{loan.borrowerName}</p>
+                    <p className="text-xs text-gray-500">
+                      {loan.loanDate.toLocaleDateString()} • {loan.estamento}
+                      {loan.facultad && ` • ${loan.facultad}`}
+                    </p>
+                  </div>
+                  <Badge className="bg-orange-100 text-orange-800">Activo</Badge>
+                </div>
+              ))}
+              {recentLoans.length === 0 && (
+                <p className="text-gray-500 text-center py-4">No hay préstamos recientes</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Estado del Inventario */}
+        <Card className="mt-6 border-blue-200">
+          <CardHeader>
+            <CardTitle className="text-blue-800">Estado del Inventario</CardTitle>
             <CardDescription>Resumen por categorías</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-3 gap-4">
-              <div className="text-center p-4 border border-lime-200 rounded-lg">
+              <div className="text-center p-4 border border-blue-200 rounded-lg">
                 <div className="text-2xl font-bold text-green-600 mb-2">
                   {((stats.availableItems / stats.totalItems) * 100).toFixed(1)}%
                 </div>
                 <div className="text-sm text-gray-600">Disponibilidad</div>
               </div>
-              <div className="text-center p-4 border border-lime-200 rounded-lg">
+              <div className="text-center p-4 border border-blue-200 rounded-lg">
                 <div className="text-2xl font-bold text-orange-600 mb-2">
                   {((stats.activeLoans / stats.totalItems) * 100).toFixed(1)}%
                 </div>
                 <div className="text-sm text-gray-600">En Préstamo</div>
               </div>
-              <div className="text-center p-4 border border-lime-200 rounded-lg">
-                <div className="text-2xl font-bold text-lime-600 mb-2">
+              <div className="text-center p-4 border border-blue-200 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600 mb-2">
                   {stats.totalItems > 0
                     ? ((stats.returnedLoans / (stats.returnedLoans + stats.activeLoans)) * 100).toFixed(1)
                     : 0}

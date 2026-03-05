@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Plus, Search, Trash2, AlertTriangle, MoreVertical, Edit } from "lucide-react"
+import { Plus, Search, Trash2, AlertTriangle, MoreVertical, Edit, CheckCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -156,6 +156,31 @@ export default function InventoryPage() {
     }
   }
 
+  const handleMarkAsAvailable = async (item: InventoryItem) => {
+    if (
+      !confirm(
+        `¿Estás seguro de que quieres marcar "${item.name}" como disponible? Esto solo debe hacerse si el elemento no está realmente prestado.`,
+      )
+    ) {
+      return
+    }
+
+    try {
+      await updateItem(item.id!, { status: "available" })
+      toast({
+        title: "Éxito",
+        description: "Elemento marcado como disponible",
+      })
+      loadInventory()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado",
+        variant: "destructive",
+      })
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "available":
@@ -174,21 +199,21 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-lime-50 to-lime-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
       <Navigation />
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-lime-800">Inventario</h1>
-          <Button onClick={() => setShowAddForm(!showAddForm)} className="bg-lime-600 hover:bg-lime-700">
+          <h1 className="text-3xl font-bold text-blue-800">Inventario</h1>
+          <Button onClick={() => setShowAddForm(!showAddForm)} className="bg-blue-600 hover:bg-blue-700">
             <Plus className="w-4 h-4 mr-2" />
             Agregar Elemento
           </Button>
         </div>
 
         {showAddForm && (
-          <Card className="mb-8 border-lime-200">
+          <Card className="mb-8 border-blue-200">
             <CardHeader>
-              <CardTitle className="text-lime-800">Agregar Nuevo Elemento</CardTitle>
+              <CardTitle className="text-blue-800">Agregar Nuevo Elemento</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleAddItem} className="space-y-4">
@@ -239,7 +264,7 @@ export default function InventoryPage() {
                   </Select>
                 </div>
                 <div className="flex gap-2">
-                  <Button type="submit" disabled={loading} className="bg-lime-600 hover:bg-lime-700">
+                  <Button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700">
                     {loading ? "Agregando..." : "Agregar"}
                   </Button>
                   <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>
@@ -251,9 +276,9 @@ export default function InventoryPage() {
           </Card>
         )}
 
-        <Card className="border-lime-200">
+        <Card className="border-blue-200">
           <CardHeader>
-            <CardTitle className="text-lime-800">Stock Disponible</CardTitle>
+            <CardTitle className="text-blue-800">Stock Disponible</CardTitle>
             <CardDescription>{filteredItems.length} elementos en inventario</CardDescription>
             <div className="flex gap-2">
               <div className="relative flex-1">
@@ -284,11 +309,11 @@ export default function InventoryPage() {
               {filteredItems.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between p-4 border border-lime-200 rounded-lg bg-white"
+                  className="flex items-center justify-between p-4 border border-blue-200 rounded-lg bg-white"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-lime-800">{item.name}</h3>
+                      <h3 className="font-semibold text-blue-800">{item.name}</h3>
                       {item.location && (
                         <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
                           {item.location}
@@ -314,6 +339,12 @@ export default function InventoryPage() {
                         <Edit className="w-4 h-4 mr-2" />
                         Editar
                       </DropdownMenuItem>
+                      {item.status === "loaned" && (
+                        <DropdownMenuItem onClick={() => handleMarkAsAvailable(item)}>
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Marcar como Disponible
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onClick={() => setSelectedItemForDamage(item)}>
                         <AlertTriangle className="w-4 h-4 mr-2" />
                         Reportar Daño

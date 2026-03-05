@@ -10,13 +10,36 @@ export interface InventoryItem {
   loanCount?: number
 }
 
+export interface User {
+  id?: string
+  tipoDocumento: string
+  cedula: string
+  nombre: string
+  codigoEstudiantil?: string
+  facultad?: string
+  programa?: string
+  genero: string
+  etnia: string
+  sede: string
+  estamento: string
+  telefono: string
+  email: string
+  createdAt: Date
+}
+
 export interface Loan {
   id?: string
   borrowerName: string
   borrowerDocument: string
   borrowerPhone: string
   borrowerEmail: string
-  culturalGroup: string
+  borrowerCode?: string
+  facultad?: string
+  programa?: string
+  genero: string
+  etnia: string
+  sede: string
+  estamento: string
   itemId: string
   itemName: string
   itemSerialNumber: string
@@ -42,5 +65,11 @@ export interface BorrowerSuggestion {
   document: string
   phone: string
   email: string
-  culturalGroup: string
+  code?: string
+  facultad?: string
+  programa?: string
+  genero: string
+  etnia: string
+  sede: string
+  estamento: string
 }

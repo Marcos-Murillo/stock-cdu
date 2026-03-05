@@ -10,24 +10,82 @@ import {
   deleteDoc,
   query,
   orderBy,
+  where,
   Timestamp,
   increment,
 } from "firebase/firestore"
-import type { InventoryItem, Loan, DamageReport, BorrowerSuggestion } from "./types"
+import type { InventoryItem, Loan, DamageReport, BorrowerSuggestion, User } from "./types"
 
 // Configuración de Firebase
 const firebaseConfig = {
-  apiKey: "AIzaSyBp8ZLReb-pVnLUJIyxfr3tJPsWFADAXjk",
-  authDomain: "culturastock.firebaseapp.com",
-  projectId: "culturastock",
-  storageBucket: "culturastock.firebasestorage.app",
-  messagingSenderId: "1061069000479",
-  appId: "1:1061069000479:web:402179bf42965c93722a2a",
-  measurementId: "G-Y9EDDHBE68"
+  apiKey: "AIzaSyCqdvCQrUVFG953lsaHTXvcweTnacixX3s",
+  authDomain: "stock-cdu.firebaseapp.com",
+  projectId: "stock-cdu",
+  storageBucket: "stock-cdu.firebasestorage.app",
+  messagingSenderId: "185915862646",
+  appId: "1:185915862646:web:ba4c8e4810543849b97957"
 }
 
 const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
+
+// Funciones para usuarios
+export const createUser = async (user: Omit<User, "id">) => {
+  try {
+    // Verificar si ya existe un usuario con esa cédula
+    const existingUser = await getUserByCedula(user.cedula)
+    if (existingUser) {
+      throw new Error("Ya existe un usuario registrado con esta cédula")
+    }
+
+    const docRef = await addDoc(collection(db, "users"), {
+      ...user,
+      createdAt: Timestamp.fromDate(user.createdAt),
+    })
+    return docRef.id
+  } catch (error) {
+    console.error("Error creating user:", error)
+    if (error instanceof Error) {
+      throw new Error(error.message)
+    }
+    throw new Error("Error desconocido al crear usuario")
+  }
+}
+
+export const getUserByCedula = async (cedula: string): Promise<User | null> => {
+  try {
+    const q = query(collection(db, "users"), where("cedula", "==", cedula))
+    const querySnapshot = await getDocs(q)
+    
+    if (querySnapshot.empty) {
+      return null
+    }
+    
+    const doc = querySnapshot.docs[0]
+    return {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt.toDate(),
+    } as User
+  } catch (error) {
+    console.error("Error getting user by cedula:", error)
+    return null
+  }
+}
+
+export const getUsers = async (): Promise<User[]> => {
+  try {
+    const querySnapshot = await getDocs(query(collection(db, "users"), orderBy("createdAt", "desc")))
+    return querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt.toDate(),
+    })) as User[]
+  } catch (error) {
+    console.error("Error getting users:", error)
+    return []
+  }
+}
 
 // Funciones para el inventario
 export const addItem = async (item: Omit<InventoryItem, "id">) => {
@@ -171,37 +229,34 @@ export const returnLoan = async (loanId: string) => {
 // Funciones para sugerencias de prestatarios
 export const getBorrowerSuggestions = async (searchTerm: string): Promise<BorrowerSuggestion[]> => {
   try {
-    const querySnapshot = await getDocs(collection(db, "loans"))
-    const loans = querySnapshot.docs.map((doc) => doc.data()) as Loan[]
-
-    // Crear un mapa único de prestatarios
-    const borrowersMap = new Map<string, BorrowerSuggestion>()
-
-    loans.forEach((loan) => {
-      const key = loan.borrowerDocument
-      if (!borrowersMap.has(key)) {
-        borrowersMap.set(key, {
-          name: loan.borrowerName,
-          document: loan.borrowerDocument,
-          phone: loan.borrowerPhone || "",
-          email: loan.borrowerEmail || "",
-          culturalGroup: loan.culturalGroup,
-        })
-      }
-    })
-
-    const suggestions = Array.from(borrowersMap.values())
-
-    if (!searchTerm) return suggestions.slice(0, 5)
-
-    return suggestions
+    // Primero buscar en usuarios registrados
+    const usersSnapshot = await getDocs(collection(db, "users"))
+    const users = usersSnapshot.docs.map((doc) => doc.data()) as User[]
+    
+    const userSuggestions = users
       .filter(
-        (borrower) =>
-          borrower.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          borrower.document.includes(searchTerm) ||
-          borrower.email.toLowerCase().includes(searchTerm.toLowerCase()),
+        (user) =>
+          user.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.cedula.includes(searchTerm) ||
+          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (user.codigoEstudiantil && user.codigoEstudiantil.includes(searchTerm))
       )
-      .slice(0, 5)
+      .map((user) => ({
+        name: user.nombre,
+        document: user.cedula,
+        phone: user.telefono,
+        email: user.email,
+        code: user.codigoEstudiantil,
+        facultad: user.facultad,
+        programa: user.programa,
+        genero: user.genero,
+        etnia: user.etnia,
+        sede: user.sede,
+        estamento: user.estamento,
+      }))
+
+    if (!searchTerm) return userSuggestions.slice(0, 5)
+    return userSuggestions.slice(0, 5)
   } catch (error) {
     console.error("Error getting borrower suggestions:", error)
     return []
@@ -259,21 +314,67 @@ export const getDetailedStats = async () => {
       }
     })
 
-    // Estadísticas por grupo cultural
-    const groupStats = loans.reduce(
+    // Estadísticas por facultad
+    const facultadStats = loans.reduce(
       (acc, loan) => {
-        if (!acc[loan.culturalGroup]) {
-          acc[loan.culturalGroup] = {
+        if (loan.facultad) {
+          if (!acc[loan.facultad]) {
+            acc[loan.facultad] = {
+              totalLoans: 0,
+              activeLoans: 0,
+              returnedLoans: 0,
+            }
+          }
+          acc[loan.facultad].totalLoans++
+          if (loan.status === "active") {
+            acc[loan.facultad].activeLoans++
+          } else {
+            acc[loan.facultad].returnedLoans++
+          }
+        }
+        return acc
+      },
+      {} as Record<string, any>,
+    )
+
+    // Estadísticas por programa
+    const programaStats = loans.reduce(
+      (acc, loan) => {
+        if (loan.programa) {
+          if (!acc[loan.programa]) {
+            acc[loan.programa] = {
+              totalLoans: 0,
+              activeLoans: 0,
+              returnedLoans: 0,
+            }
+          }
+          acc[loan.programa].totalLoans++
+          if (loan.status === "active") {
+            acc[loan.programa].activeLoans++
+          } else {
+            acc[loan.programa].returnedLoans++
+          }
+        }
+        return acc
+      },
+      {} as Record<string, any>,
+    )
+
+    // Estadísticas por género
+    const generoStats = loans.reduce(
+      (acc, loan) => {
+        if (!acc[loan.genero]) {
+          acc[loan.genero] = {
             totalLoans: 0,
             activeLoans: 0,
             returnedLoans: 0,
           }
         }
-        acc[loan.culturalGroup].totalLoans++
+        acc[loan.genero].totalLoans++
         if (loan.status === "active") {
-          acc[loan.culturalGroup].activeLoans++
+          acc[loan.genero].activeLoans++
         } else {
-          acc[loan.culturalGroup].returnedLoans++
+          acc[loan.genero].returnedLoans++
         }
         return acc
       },
@@ -282,7 +383,9 @@ export const getDetailedStats = async () => {
 
     return {
       itemStats: itemStats.sort((a, b) => b.totalLoans - a.totalLoans),
-      groupStats,
+      facultadStats,
+      programaStats,
+      generoStats,
       totalItems: inventory.length,
       totalLoans: loans.length,
       activeLoans: loans.filter((loan) => loan.status === "active").length,

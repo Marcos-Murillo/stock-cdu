@@ -14,7 +14,13 @@ interface BorrowerAutocompleteProps {
     borrowerDocument: string
     borrowerPhone: string
     borrowerEmail: string
-    culturalGroup: string
+    borrowerCode?: string
+    facultad?: string
+    programa?: string
+    genero: string
+    etnia: string
+    sede: string
+    estamento: string
   }
   setFormData: (data: any) => void
 }
@@ -26,9 +32,9 @@ export default function BorrowerAutocomplete({ onSelect, formData, setFormData }
 
   useEffect(() => {
     const loadSuggestions = async () => {
-      if (formData.borrowerName.length > 2 || formData.borrowerDocument.length > 3) {
+      if (formData.borrowerName.length > 2 || formData.borrowerDocument.length > 3 || (formData.borrowerCode && formData.borrowerCode.length > 3)) {
         setLoading(true)
-        const searchTerm = formData.borrowerName || formData.borrowerDocument
+        const searchTerm = formData.borrowerName || formData.borrowerDocument || formData.borrowerCode || ""
         const results = await getBorrowerSuggestions(searchTerm)
         setSuggestions(results)
         setShowSuggestions(results.length > 0)
@@ -40,7 +46,7 @@ export default function BorrowerAutocomplete({ onSelect, formData, setFormData }
 
     const debounceTimer = setTimeout(loadSuggestions, 300)
     return () => clearTimeout(debounceTimer)
-  }, [formData.borrowerName, formData.borrowerDocument])
+  }, [formData.borrowerName, formData.borrowerDocument, formData.borrowerCode])
 
   const handleSuggestionClick = (suggestion: BorrowerSuggestion) => {
     setFormData({
@@ -49,7 +55,13 @@ export default function BorrowerAutocomplete({ onSelect, formData, setFormData }
       borrowerDocument: suggestion.document,
       borrowerPhone: suggestion.phone,
       borrowerEmail: suggestion.email,
-      culturalGroup: suggestion.culturalGroup,
+      borrowerCode: suggestion.code || "",
+      facultad: suggestion.facultad || "",
+      programa: suggestion.programa || "",
+      genero: suggestion.genero,
+      etnia: suggestion.etnia,
+      sede: suggestion.sede,
+      estamento: suggestion.estamento,
     })
     onSelect(suggestion)
     setShowSuggestions(false)
@@ -57,7 +69,7 @@ export default function BorrowerAutocomplete({ onSelect, formData, setFormData }
 
   return (
     <div className="space-y-4">
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid md:grid-cols-3 gap-4">
         <div className="relative">
           <Label htmlFor="borrowerName">Nombre del Solicitante *</Label>
           <Input
@@ -76,6 +88,15 @@ export default function BorrowerAutocomplete({ onSelect, formData, setFormData }
             onChange={(e) => setFormData({ ...formData, borrowerDocument: e.target.value })}
             placeholder="Número de cédula"
             required
+          />
+        </div>
+        <div className="relative">
+          <Label htmlFor="borrowerCode">Código Estudiantil</Label>
+          <Input
+            id="borrowerCode"
+            value={formData.borrowerCode || ""}
+            onChange={(e) => setFormData({ ...formData, borrowerCode: e.target.value })}
+            placeholder="Código (opcional)"
           />
         </div>
       </div>
@@ -105,9 +126,9 @@ export default function BorrowerAutocomplete({ onSelect, formData, setFormData }
       </div>
 
       {showSuggestions && (
-        <Card className="border-lime-200">
+        <Card className="border-blue-200">
           <CardContent className="p-2">
-            <div className="text-sm text-gray-600 mb-2">Sugerencias basadas en préstamos anteriores:</div>
+            <div className="text-sm text-gray-600 mb-2">Usuarios registrados encontrados:</div>
             {loading ? (
               <div className="text-sm text-gray-500">Cargando sugerencias...</div>
             ) : (
@@ -115,14 +136,17 @@ export default function BorrowerAutocomplete({ onSelect, formData, setFormData }
                 {suggestions.map((suggestion, index) => (
                   <div
                     key={index}
-                    className="p-2 hover:bg-lime-50 cursor-pointer rounded border border-lime-100"
+                    className="p-2 hover:bg-blue-50 cursor-pointer rounded border border-blue-100"
                     onClick={() => handleSuggestionClick(suggestion)}
                   >
-                    <div className="font-medium text-lime-800">{suggestion.name}</div>
+                    <div className="font-medium text-blue-800">{suggestion.name}</div>
                     <div className="text-sm text-gray-600">
-                      {suggestion.document} • {suggestion.phone} • {suggestion.email}
+                      {suggestion.document} {suggestion.code && `• ${suggestion.code}`}
                     </div>
-                    <div className="text-xs text-gray-500">{suggestion.culturalGroup}</div>
+                    <div className="text-xs text-gray-500">
+                      {suggestion.email} • {suggestion.estamento}
+                      {suggestion.facultad && ` • ${suggestion.facultad}`}
+                    </div>
                   </div>
                 ))}
               </div>
