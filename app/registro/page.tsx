@@ -122,13 +122,10 @@ export default function RegistroPage() {
     setIsSubmitting(true)
 
     try {
-      await createUser({
+      const userData: any = {
         tipoDocumento: formData.tipoDocumento,
         cedula: formData.cedula,
         nombre: formData.nombre,
-        codigoEstudiantil: requiresAcademicInfo ? formData.codigoEstudiantil : undefined,
-        facultad: requiresAcademicInfo ? formData.facultad : undefined,
-        programa: requiresAcademicInfo ? formData.programa : undefined,
         genero: formData.genero,
         etnia: formData.etnia,
         sede: formData.sede,
@@ -136,7 +133,16 @@ export default function RegistroPage() {
         telefono: formData.telefono,
         email: formData.email,
         createdAt: new Date(),
-      })
+      }
+
+      // Solo agregar campos académicos si son requeridos
+      if (requiresAcademicInfo) {
+        userData.codigoEstudiantil = formData.codigoEstudiantil
+        userData.facultad = formData.facultad
+        userData.programa = formData.programa
+      }
+
+      await createUser(userData)
 
       setRegistroExitoso(true)
     } catch (error) {
