@@ -123,14 +123,11 @@ export default function LoansPage() {
 
     setLoading(true)
     try {
-      await createLoan({
+      const loanData: any = {
         borrowerName: formData.borrowerName,
         borrowerDocument: formData.borrowerDocument,
         borrowerPhone: formData.borrowerPhone,
         borrowerEmail: formData.borrowerEmail,
-        borrowerCode: formData.borrowerCode || undefined,
-        facultad: formData.facultad || undefined,
-        programa: formData.programa || undefined,
         genero: formData.genero,
         etnia: formData.etnia,
         sede: formData.sede,
@@ -140,7 +137,16 @@ export default function LoansPage() {
         itemSerialNumber: selectedItem.serialNumber,
         loanDate: new Date(formData.loanDate),
         status: "active",
-      })
+      }
+
+      // Solo agregar campos académicos si son requeridos
+      if (requiresAcademicInfo && formData.borrowerCode) {
+        loanData.borrowerCode = formData.borrowerCode
+        loanData.facultad = formData.facultad
+        loanData.programa = formData.programa
+      }
+
+      await createLoan(loanData)
 
       toast({
         title: "Éxito",
