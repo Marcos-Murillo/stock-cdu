@@ -46,6 +46,7 @@ export interface Loan {
   loanDate: Date
   returnDate?: Date
   status: "active" | "returned"
+  loanGroupId?: string // Para agrupar préstamos del mismo momento
 }
 
 export interface DamageReport {
@@ -72,4 +73,21 @@ export interface BorrowerSuggestion {
   etnia: string
   sede: string
   estamento: string
+}
+
+export interface LoanNotification {
+  loanId: string
+  loan: Loan
+  itemName: string
+  borrowerName: string
+  borrowerDocument: string
+  daysOverdue: number
+  alertLevel: '24h' | '3days' | '7days'
+  shouldReport: boolean
+}
+
+export interface CartItem {
+  itemName: string
+  items: InventoryItem[]
+  quantity: number
 }

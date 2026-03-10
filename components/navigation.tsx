@@ -1,8 +1,13 @@
+"use client"
+
 import Link from "next/link"
-import { Home, Package, Users, BarChart3, TrendingUp } from "lucide-react"
+import { Home, Package, Users, BarChart3, TrendingUp, Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useNotifications } from "@/hooks/use-notifications"
 
 export default function Navigation() {
+  const { totalCount } = useNotifications()
+
   return (
     <nav className="bg-blue-600 text-white shadow-lg">
       <div className="container mx-auto px-4">
@@ -41,6 +46,17 @@ export default function Navigation() {
               <Button variant="ghost" className="text-white hover:bg-blue-700">
                 <TrendingUp className="w-4 h-4 mr-2" />
                 Estadísticas
+              </Button>
+            </Link>
+            <Link href="/notifications">
+              <Button variant="ghost" className="text-white hover:bg-blue-700 relative">
+                <Bell className="w-4 h-4 mr-2" />
+                Notificaciones
+                {totalCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                    {totalCount}
+                  </span>
+                )}
               </Button>
             </Link>
           </div>

@@ -31,6 +31,7 @@ export default function InventoryPage() {
     serialNumber: "",
     description: "",
     location: "" as "Auditorio 5" | "Bodega" | "",
+    quantity: 1,
   })
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
@@ -77,12 +78,10 @@ export default function InventoryPage() {
       return
     }
 
-    // Verificar si el número de serie ya existe
-    const existingItem = items.find((item) => item.serialNumber === formData.serialNumber)
-    if (existingItem) {
+    if (formData.quantity < 1 || formData.quantity > 100) {
       toast({
         title: "Error",
-        description: "Ya existe un elemento con ese número de serie",
+        description: "La cantidad debe estar entre 1 y 100",
         variant: "destructive",
       })
       return
@@ -90,21 +89,47 @@ export default function InventoryPage() {
 
     setLoading(true)
     try {
-      await addItem({
-        name: formData.name,
-        serialNumber: formData.serialNumber,
-        description: formData.description,
-        location: formData.location || undefined,
-        status: "available",
-        createdAt: new Date(),
-      })
+      const itemsToAdd = []
+      
+      // Crear múltiples elementos si la cantidad es mayor a 1
+      for (let i = 1; i <= formData.quantity; i++) {
+        const serialNumber = formData.quantity === 1 
+          ? formData.serialNumber 
+          : `${formData.serialNumber}-${String(i).padStart(2, '0')}`
+        
+        // Verificar si el número de serie ya existe
+        const existingItem = items.find((item) => item.serialNumber === serialNumber)
+        if (existingItem) {
+          toast({
+            title: "Error",
+            description: `Ya existe un elemento con el número de serie ${serialNumber}`,
+            variant: "destructive",
+          })
+          setLoading(false)
+          return
+        }
+
+        itemsToAdd.push({
+          name: formData.name,
+          serialNumber: serialNumber,
+          description: formData.description,
+          location: formData.location || undefined,
+          status: "available" as const,
+          createdAt: new Date(),
+        })
+      }
+
+      // Agregar todos los elementos
+      for (const item of itemsToAdd) {
+        await addItem(item)
+      }
 
       toast({
         title: "Éxito",
-        description: "Elemento agregado al inventario",
+        description: `${formData.quantity} ${formData.quantity === 1 ? 'elemento agregado' : 'elementos agregados'} al inventario`,
       })
 
-      setFormData({ name: "", serialNumber: "", description: "", location: "" })
+      setFormData({ name: "", serialNumber: "", description: "", location: "", quantity: 1 })
       setShowAddForm(false)
       loadInventory()
     } catch (error) {
@@ -224,19 +249,73 @@ export default function InventoryPage() {
                       id="name"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="Ej: Guitarra acústica"
+                      placeholder="Ej: Balón de Fútbol"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="serialNumber">Número de Serie *</Label>
+                    <Label htmlFor="serialNumber">Número de Serie Base *</Label>
                     <Input
                       id="serialNumber"
                       value={formData.serialNumber}
                       onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
-                      placeholder="Ej: GTA-001"
+                      placeholder="Ej: BF-2024"
                       required
                     />
+                    {formData.quantity > 1 && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Se generarán: {formData.serialNumber}-01, {formData.serialNumber}-02, ...
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="quantity">Cantidad *</Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={formData.quantity}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        if (value === '') {
+                          setFormData({ ...formData, quantity: 0 })
+                        } else {
+                          const num = parseInt(value)
+                          if (!isNaN(num)) {
+                            setFormData({ ...formData, quantity: num })
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        // Si está vacío o es 0, establecer en 1
+                        if (formData.quantity === 0 || e.target.value === '') {
+                          setFormData({ ...formData, quantity: 1 })
+                        }
+                      }}
+                      placeholder="1"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Número de elementos idénticos a agregar (máx. 100)
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="location">Ubicación</Label>
+                    <Select
+                      value={formData.location}
+                      onValueChange={(value) => setFormData({ ...formData, location: value as "Auditorio 5" | "Bodega" })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar ubicación" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Auditorio 5">Auditorio 5</SelectItem>
+                        <SelectItem value="Bodega">Bodega</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div>
@@ -247,25 +326,13 @@ export default function InventoryPage() {
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Descripción adicional del elemento"
                   />
-                </div>
-                <div>
-                  <Label htmlFor="location">Ubicación</Label>
-                  <Select
-                    value={formData.location}
-                    onValueChange={(value) => setFormData({ ...formData, location: value as "Auditorio 5" | "Bodega" })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar ubicación" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Auditorio 5">Auditorio 5</SelectItem>
-                      <SelectItem value="Bodega">Bodega</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Esta descripción se aplicará a todos los elementos
+                  </p>
                 </div>
                 <div className="flex gap-2">
                   <Button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700">
-                    {loading ? "Agregando..." : "Agregar"}
+                    {loading ? "Agregando..." : `Agregar ${formData.quantity} ${formData.quantity === 1 ? 'Elemento' : 'Elementos'}`}
                   </Button>
                   <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>
                     Cancelar
