@@ -7,11 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { getInventory, getLoans, createLoan, returnLoan } from "@/lib/firebase"
-import { GENEROS, ETNIAS, SEDES, ESTAMENTOS, FACULTADES, PROGRAMAS_POR_FACULTAD } from "@/lib/data"
 import type { InventoryItem, Loan } from "@/lib/types"
 import Navigation from "@/components/navigation"
 import BorrowerAutocomplete from "@/components/borrower-autocomplete"
@@ -23,7 +21,6 @@ export default function LoansPage() {
   const [loans, setLoans] = useState<Loan[]>([])
   const [filteredLoans, setFilteredLoans] = useState<Loan[]>([])
   const [searchTerm, setSearchTerm] = useState("")
-  const [showLoanForm, setShowLoanForm] = useState(false)
   const [formData, setFormData] = useState({
     borrowerName: "",
     borrowerDocument: "",
@@ -78,34 +75,14 @@ export default function LoansPage() {
     }
   }
 
-  const requiresAcademicInfo = ["ESTUDIANTE", "EGRESADO"].includes(formData.estamento)
-
   const handleCreateLoan = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (
-      !formData.borrowerName ||
-      !formData.borrowerDocument ||
-      !formData.borrowerPhone ||
-      !formData.borrowerEmail ||
-      !formData.genero ||
-      !formData.etnia ||
-      !formData.sede ||
-      !formData.estamento ||
-      !formData.itemId
-    ) {
+    // Validación básica
+    if (!formData.borrowerName || !formData.borrowerDocument || !formData.itemId) {
       toast({
         title: "Error",
-        description: "Todos los campos obligatorios deben ser completados",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (requiresAcademicInfo && (!formData.borrowerCode || !formData.facultad || !formData.programa)) {
-      toast({
-        title: "Error",
-        description: "Los estudiantes y egresados deben completar código, facultad y programa",
+        description: "Debe seleccionar un usuario y un elemento",
         variant: "destructive",
       })
       return
@@ -139,10 +116,14 @@ export default function LoansPage() {
         status: "active",
       }
 
-      // Solo agregar campos académicos si son requeridos
-      if (requiresAcademicInfo && formData.borrowerCode) {
+      // Solo agregar campos académicos si existen
+      if (formData.borrowerCode) {
         loanData.borrowerCode = formData.borrowerCode
+      }
+      if (formData.facultad) {
         loanData.facultad = formData.facultad
+      }
+      if (formData.programa) {
         loanData.programa = formData.programa
       }
 
@@ -153,6 +134,7 @@ export default function LoansPage() {
         description: "Préstamo registrado correctamente",
       })
 
+      // Limpiar formulario
       setFormData({
         borrowerName: "",
         borrowerDocument: "",
@@ -168,12 +150,11 @@ export default function LoansPage() {
         itemId: "",
         loanDate: new Date().toISOString().split("T")[0],
       })
-      setShowLoanForm(false)
       loadData()
     } catch (error) {
       toast({
         title: "Error",
-        description: "No se pudo registrar el préstamo",
+        description: error instanceof Error ? error.message : "No se pudo registrar el préstamo",
         variant: "destructive",
       })
     } finally {
@@ -202,280 +183,202 @@ export default function LoansPage() {
     }
   }
 
-  const programasDisponibles = formData.facultad ? PROGRAMAS_POR_FACULTAD[formData.facultad] || [] : []
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
       <Navigation />
       <div className="container mx-auto px-4 py-8">
+        {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-blue-800">Préstamos Deportivos</h1>
-          <div className="flex gap-2">
-            <Button 
-              onClick={() => router.push("/registro")} 
-              variant="outline"
-              className="border-blue-600 text-blue-600 hover:bg-blue-50"
-            >
-              <UserPlus className="w-4 h-4 mr-2" />
-              Registrar Usuario
-            </Button>
-            <Button onClick={() => setShowLoanForm(!showLoanForm)} className="bg-blue-600 hover:bg-blue-700">
-              <UserCheck className="w-4 h-4 mr-2" />
-              Nuevo Préstamo
-            </Button>
-          </div>
+          <Button 
+            onClick={() => router.push("/registro")} 
+            variant="outline"
+            className="border-blue-600 text-blue-600 hover:bg-blue-50"
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Registrar Usuario
+          </Button>
         </div>
 
-        {showLoanForm && (
-          <Card className="mb-8 border-blue-200">
-            <CardHeader>
-              <CardTitle className="text-blue-800">Registrar Nuevo Préstamo</CardTitle>
-              <CardDescription>Complete los datos del solicitante y seleccione el elemento</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleCreateLoan} className="space-y-6">
-                <BorrowerAutocomplete
-                  onSelect={(borrower) => {
-                    // El autocompletado ya maneja la actualización del formData
-                  }}
-                  formData={formData}
-                  setFormData={setFormData}
-                />
+        {/* Layout de dos columnas */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Card Izquierdo - Nuevo Préstamo (1/3) */}
+          <div className="lg:col-span-1">
+            <Card className="border-blue-200 sticky top-4">
+              <CardHeader>
+                <CardTitle className="text-blue-800 flex items-center gap-2">
+                  <UserCheck className="w-5 h-5" />
+                  Nuevo Préstamo
+                </CardTitle>
+                <CardDescription>Complete los datos para registrar un préstamo</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleCreateLoan} className="space-y-4">
+                  {/* Autocompletado */}
+                  <BorrowerAutocomplete
+                    onSelect={() => {}}
+                    formData={formData}
+                    setFormData={setFormData}
+                  />
 
-                <div className="grid md:grid-cols-3 gap-4">
+                  {/* Campos de solo lectura que se llenan automáticamente */}
                   <div>
-                    <Label htmlFor="estamento">Estamento *</Label>
-                    <Select
-                      value={formData.estamento}
-                      onValueChange={(value) => {
-                        setFormData({ 
-                          ...formData, 
-                          estamento: value,
-                          borrowerCode: "",
-                          facultad: "",
-                          programa: ""
-                        })
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ESTAMENTOS.map((estamento) => (
-                          <SelectItem key={estamento} value={estamento}>
-                            {estamento}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label className="text-xs text-gray-500">Solicitante</Label>
+                    <Input
+                      value={formData.borrowerName}
+                      readOnly
+                      className="bg-gray-50"
+                      placeholder="Se llenará automáticamente"
+                    />
                   </div>
-                  <div>
-                    <Label htmlFor="genero">Género *</Label>
-                    <Select
-                      value={formData.genero}
-                      onValueChange={(value) => setFormData({ ...formData, genero: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {GENEROS.map((genero) => (
-                          <SelectItem key={genero} value={genero}>
-                            {genero}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="etnia">Etnia *</Label>
-                    <Select
-                      value={formData.etnia}
-                      onValueChange={(value) => setFormData({ ...formData, etnia: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ETNIAS.map((etnia) => (
-                          <SelectItem key={etnia} value={etnia}>
-                            {etnia}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
 
-                <div>
-                  <Label htmlFor="sede">Sede *</Label>
-                  <Select
-                    value={formData.sede}
-                    onValueChange={(value) => setFormData({ ...formData, sede: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar sede" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SEDES.map((sede) => (
-                        <SelectItem key={sede} value={sede}>
-                          {sede}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {requiresAcademicInfo && (
-                  <>
+                  {formData.borrowerCode && (
                     <div>
-                      <Label htmlFor="borrowerCode">Código Estudiantil *</Label>
+                      <Label className="text-xs text-gray-500">Código</Label>
                       <Input
-                        id="borrowerCode"
                         value={formData.borrowerCode}
-                        onChange={(e) => setFormData({ ...formData, borrowerCode: e.target.value })}
-                        placeholder="Código estudiantil"
-                        required={requiresAcademicInfo}
+                        readOnly
+                        className="bg-gray-50"
                       />
                     </div>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="facultad">Facultad *</Label>
-                        <Select
-                          value={formData.facultad}
-                          onValueChange={(value) => setFormData({ ...formData, facultad: value, programa: "" })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar facultad" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {FACULTADES.map((facultad) => (
-                              <SelectItem key={facultad} value={facultad}>
-                                {facultad}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="programa">Programa *</Label>
-                        <Select
-                          value={formData.programa}
-                          onValueChange={(value) => setFormData({ ...formData, programa: value })}
-                          disabled={!formData.facultad}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar programa" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {programasDisponibles.map((programa) => (
-                              <SelectItem key={programa} value={programa}>
-                                {programa}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                  )}
+
+                  {formData.facultad && (
+                    <div>
+                      <Label className="text-xs text-gray-500">Facultad</Label>
+                      <Input
+                        value={formData.facultad}
+                        readOnly
+                        className="bg-gray-50 text-xs"
+                      />
                     </div>
-                  </>
-                )}
+                  )}
 
-                <div>
-                  <Label htmlFor="loanDate">Fecha del Préstamo *</Label>
-                  <Input
-                    id="loanDate"
-                    type="date"
-                    value={formData.loanDate}
-                    onChange={(e) => setFormData({ ...formData, loanDate: e.target.value })}
-                    required
-                  />
-                </div>
+                  {formData.programa && (
+                    <div>
+                      <Label className="text-xs text-gray-500">Programa</Label>
+                      <Input
+                        value={formData.programa}
+                        readOnly
+                        className="bg-gray-50 text-xs"
+                      />
+                    </div>
+                  )}
 
-                <ItemSelector
-                  items={availableItems}
-                  selectedItemId={formData.itemId}
-                  onSelect={(itemId) => setFormData({ ...formData, itemId })}
-                />
+                  {formData.estamento && (
+                    <div>
+                      <Label className="text-xs text-gray-500">Estamento</Label>
+                      <Input
+                        value={formData.estamento}
+                        readOnly
+                        className="bg-gray-50"
+                      />
+                    </div>
+                  )}
 
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700">
+                  {formData.sede && (
+                    <div>
+                      <Label className="text-xs text-gray-500">Sede</Label>
+                      <Input
+                        value={formData.sede}
+                        readOnly
+                        className="bg-gray-50"
+                      />
+                    </div>
+                  )}
+
+                  {/* Selector de elemento */}
+                  <div className="pt-2">
+                    <ItemSelector
+                      items={availableItems}
+                      selectedItemId={formData.itemId}
+                      onSelect={(itemId) => setFormData({ ...formData, itemId })}
+                    />
+                  </div>
+
+                  {/* Botón de registro */}
+                  <Button 
+                    type="submit" 
+                    disabled={loading || !formData.borrowerName || !formData.itemId} 
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                  >
                     {loading ? "Registrando..." : "Registrar Préstamo"}
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => setShowLoanForm(false)}>
-                    Cancelar
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
+                </form>
+              </CardContent>
+            </Card>
+          </div>
 
-        <Card className="border-blue-200">
-          <CardHeader>
-            <CardTitle className="text-blue-800">Préstamos Activos</CardTitle>
-            <CardDescription>
-              {filteredLoans.filter((loan) => loan.status === "active").length} préstamos activos
-            </CardDescription>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Buscar por nombre, elemento, serie, cédula, código o correo..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {filteredLoans
-                .filter((loan) => loan.status === "active")
-                .map((loan) => (
-                  <div
-                    key={loan.id}
-                    className="flex items-center justify-between p-4 border border-blue-200 rounded-lg bg-white"
-                  >
-                    <div className="flex-1 grid md:grid-cols-2 gap-4">
-                      <div>
-                        <h3 className="font-semibold text-blue-800 mb-2">{loan.itemName}</h3>
-                        <p className="text-sm text-gray-600">Serie: {loan.itemSerialNumber}</p>
-                        <p className="text-sm text-gray-500">Fecha: {loan.loanDate.toLocaleDateString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">{loan.borrowerName}</p>
-                        <p className="text-sm text-gray-600">Cédula: {loan.borrowerDocument}</p>
-                        {loan.borrowerCode && <p className="text-sm text-gray-600">Código: {loan.borrowerCode}</p>}
-                        <p className="text-sm text-gray-600">Tel: {loan.borrowerPhone}</p>
-                        <p className="text-sm text-gray-600">Email: {loan.borrowerEmail}</p>
-                        <p className="text-sm text-gray-600">Estamento: {loan.estamento}</p>
-                        {loan.facultad && <p className="text-sm text-gray-600">Facultad: {loan.facultad}</p>}
-                        {loan.programa && <p className="text-sm text-gray-600">Programa: {loan.programa}</p>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className="bg-orange-100 text-orange-800">Prestado</Badge>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleReturnLoan(loan.id!)}
-                        className="border-blue-600 text-blue-600 hover:bg-blue-50"
-                      >
-                        <Package className="w-4 h-4 mr-1" />
-                        Devolver
-                      </Button>
-                    </div>
+          {/* Card Derecho - Préstamos Activos (2/3) */}
+          <div className="lg:col-span-2">
+            <Card className="border-blue-200">
+              <CardHeader>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <CardTitle className="text-blue-800">Préstamos Activos</CardTitle>
+                    <CardDescription>
+                      {filteredLoans.filter((loan) => loan.status === "active").length} préstamos activos
+                    </CardDescription>
                   </div>
-                ))}
-              {filteredLoans.filter((loan) => loan.status === "active").length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  {searchTerm ? "No se encontraron préstamos" : "No hay préstamos activos"}
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Buscar por nombre, elemento, serie, cédula, código o correo..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto pr-2">
+                  {filteredLoans
+                    .filter((loan) => loan.status === "active")
+                    .map((loan) => (
+                      <div
+                        key={loan.id}
+                        className="flex items-start justify-between p-4 border border-blue-200 rounded-lg bg-white hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex-1 grid md:grid-cols-2 gap-4">
+                          <div>
+                            <h3 className="font-semibold text-blue-800 mb-2">{loan.itemName}</h3>
+                            <p className="text-sm text-gray-600">Serie: {loan.itemSerialNumber}</p>
+                            <p className="text-sm text-gray-500">Fecha: {loan.loanDate.toLocaleDateString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-700">{loan.borrowerName}</p>
+                            <p className="text-sm text-gray-600">Cédula: {loan.borrowerDocument}</p>
+                            {loan.borrowerCode && <p className="text-sm text-gray-600">Código: {loan.borrowerCode}</p>}
+                            <p className="text-sm text-gray-600">Tel: {loan.borrowerPhone}</p>
+                            <p className="text-sm text-gray-600">Estamento: {loan.estamento}</p>
+                            {loan.facultad && <p className="text-sm text-gray-600 truncate">Facultad: {loan.facultad}</p>}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2 ml-4">
+                          <Badge className="bg-orange-100 text-orange-800">Prestado</Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReturnLoan(loan.id!)}
+                            className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                          >
+                            <Package className="w-4 h-4 mr-1" />
+                            Devolver
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  {filteredLoans.filter((loan) => loan.status === "active").length === 0 && (
+                    <div className="text-center py-12 text-gray-500">
+                      {searchTerm ? "No se encontraron préstamos" : "No hay préstamos activos"}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   )

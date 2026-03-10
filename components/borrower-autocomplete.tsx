@@ -71,7 +71,7 @@ export default function BorrowerAutocomplete({ onSelect, formData, setFormData }
     <div className="space-y-4">
       <div className="grid md:grid-cols-3 gap-4">
         <div className="relative">
-          <Label htmlFor="borrowerName">Nombre del Solicitante *</Label>
+          <Label htmlFor="borrowerName">Nombre *</Label>
           <Input
             id="borrowerName"
             value={formData.borrowerName}
@@ -91,7 +91,7 @@ export default function BorrowerAutocomplete({ onSelect, formData, setFormData }
           />
         </div>
         <div className="relative">
-          <Label htmlFor="borrowerCode">Código Estudiantil</Label>
+          <Label htmlFor="borrowerCode">Código</Label>
           <Input
             id="borrowerCode"
             value={formData.borrowerCode || ""}
@@ -103,7 +103,7 @@ export default function BorrowerAutocomplete({ onSelect, formData, setFormData }
 
       <div className="grid md:grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="borrowerPhone">Número de Teléfono *</Label>
+          <Label htmlFor="borrowerPhone">Teléfono *</Label>
           <Input
             id="borrowerPhone"
             value={formData.borrowerPhone}
@@ -113,7 +113,7 @@ export default function BorrowerAutocomplete({ onSelect, formData, setFormData }
           />
         </div>
         <div>
-          <Label htmlFor="borrowerEmail">Correo Electrónico *</Label>
+          <Label htmlFor="borrowerEmail">Correo *</Label>
           <Input
             id="borrowerEmail"
             type="email"
