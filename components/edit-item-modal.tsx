@@ -30,7 +30,7 @@ export default function EditItemModal({ item, isOpen, onClose, onSave }: EditIte
         name: item.name,
         serialNumber: item.serialNumber,
         description: item.description || "",
-        location: item.location || "",
+        location: (item.location || "") as "Auditorio 5" | "Bodega" | "",
       })
     }
   }, [item])
