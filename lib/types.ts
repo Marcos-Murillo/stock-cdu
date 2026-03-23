@@ -63,7 +63,7 @@ export interface LoanNotification {
   borrowerName: string
   borrowerDocument: string
   itemName: string
-  alertLevel: "warning" | "critical" | "overdue"
+  alertLevel: "24h" | "3days" | "7days"
   shouldReport: boolean
   loan: Loan
 }
