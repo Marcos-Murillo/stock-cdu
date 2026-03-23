@@ -50,6 +50,7 @@ export interface DamageReport {
   reportDate: Date
   damageDescription: string
   severity: "low" | "medium" | "high"
+  status?: string
 }
 
 export interface CartItem {
