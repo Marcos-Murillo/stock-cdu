@@ -65,6 +65,7 @@ export interface LoanNotification {
   itemName: string
   alertLevel: "24h" | "3days" | "7days"
   shouldReport: boolean
+  daysOverdue: number
   loan: Loan
 }
 
