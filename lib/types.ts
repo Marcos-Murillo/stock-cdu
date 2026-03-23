@@ -15,6 +15,7 @@ export interface InventoryItem {
   status: "available" | "loaned" | "removed"
   createdAt: Date
   loanCount?: number
+  location?: string
 }
 
 export interface Loan {
@@ -37,6 +38,7 @@ export interface Loan {
   returnDate?: Date
   status: "active" | "returned"
   notes?: string
+  loanGroupId?: string
 }
 
 export interface DamageReport {
