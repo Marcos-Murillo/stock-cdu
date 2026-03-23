@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { getInventory, getLoans } from "@/lib/firebase"
 import type { InventoryItem, Loan } from "@/lib/types"
 import Navigation from "@/components/navigation"
+import { RouteGuard } from "@/components/route-guard"
 
 export default function ReportsPage() {
   const [items, setItems] = useState<InventoryItem[]>([])
@@ -74,6 +75,7 @@ export default function ReportsPage() {
   }
 
   return (
+    <RouteGuard>
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
       <Navigation />
       <div className="container mx-auto px-4 py-8">
@@ -245,5 +247,6 @@ export default function ReportsPage() {
         </Card>
       </div>
     </div>
+    </RouteGuard>
   )
 }

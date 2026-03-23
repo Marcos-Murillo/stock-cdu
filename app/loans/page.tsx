@@ -15,6 +15,7 @@ import Navigation from "@/components/navigation"
 import BorrowerAutocomplete from "@/components/borrower-autocomplete"
 import { useRouter } from "next/navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { RouteGuard } from "@/components/route-guard"
 
 export default function LoansPage() {
   const [availableItems, setAvailableItems] = useState<InventoryItem[]>([])
@@ -185,6 +186,10 @@ export default function LoansPage() {
       // Generar un ID único para agrupar todos los préstamos
       const loanGroupId = `${Date.now()}-${formData.borrowerDocument}`
 
+      // Corregir la fecha sumando un día para compensar la zona horaria
+      const loanDate = new Date(formData.loanDate)
+      loanDate.setDate(loanDate.getDate() + 1)
+
       // Crear un préstamo por cada elemento en el carrito
       for (const cartItem of cart) {
         for (const item of cartItem.items) {
@@ -200,7 +205,7 @@ export default function LoansPage() {
             itemId: item.id!,
             itemName: item.name,
             itemSerialNumber: item.serialNumber,
-            loanDate: new Date(formData.loanDate),
+            loanDate: loanDate,
             status: "active",
             loanGroupId: loanGroupId,
           }
@@ -275,7 +280,34 @@ export default function LoansPage() {
     }
   }
 
+  const handleReturnLoanGroup = async (groupLoans: Loan[]) => {
+    const count = groupLoans.length
+    if (!confirm(`¿Confirmar la devolución de ${count} ${count === 1 ? 'elemento' : 'elementos'}?`)) {
+      return
+    }
+
+    try {
+      // Devolver todos los elementos del grupo
+      for (const loan of groupLoans) {
+        await returnLoan(loan.id!)
+      }
+      
+      toast({
+        title: "Éxito",
+        description: `${count} ${count === 1 ? 'elemento devuelto' : 'elementos devueltos'} correctamente`,
+      })
+      loadData()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo procesar la devolución",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
+    <RouteGuard>
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
       <Navigation />
       <div className="container mx-auto px-4 py-8">
@@ -556,23 +588,23 @@ export default function LoansPage() {
                                         <p className="text-sm font-medium text-gray-800">{loan.itemName}</p>
                                         <p className="text-xs text-gray-500">Serie: {loan.itemSerialNumber}</p>
                                       </div>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleReturnLoan(loan.id!)}
-                                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                      >
-                                        <Package className="w-4 h-4 mr-1" />
-                                        Devolver
-                                      </Button>
                                     </div>
                                   ))}
                                 </div>
                               </div>
                             </div>
                             
-                            <div className="ml-4">
+                            <div className="flex flex-col items-end gap-2 ml-4">
                               <Badge className="bg-orange-100 text-orange-800">Prestado</Badge>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleReturnLoanGroup(groupLoans)}
+                                className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                              >
+                                <Package className="w-4 h-4 mr-1" />
+                                Devolver {isMultiple ? 'Todo' : ''}
+                              </Button>
                             </div>
                           </div>
                         </div>
@@ -591,5 +623,6 @@ export default function LoansPage() {
         </div>
       </div>
     </div>
+    </RouteGuard>
   )
 }

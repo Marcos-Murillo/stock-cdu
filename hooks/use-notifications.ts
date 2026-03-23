@@ -19,12 +19,18 @@ export function useNotifications() {
       const activeLoans = loans.filter((loan) => loan.status === "active")
       
       const now = new Date()
+      // Normalizar la fecha actual a medianoche para comparación justa
+      now.setHours(0, 0, 0, 0)
+      
       const notifs: LoanNotification[] = []
 
       activeLoans.forEach((loan) => {
         const loanDate = new Date(loan.loanDate)
-        const diffTime = Math.abs(now.getTime() - loanDate.getTime())
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        // Normalizar la fecha del préstamo a medianoche
+        loanDate.setHours(0, 0, 0, 0)
+        
+        const diffTime = now.getTime() - loanDate.getTime()
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
 
         // Determinar nivel de alerta
         const alerts: ('24h' | '3days' | '7days')[] = []

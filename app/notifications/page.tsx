@@ -22,6 +22,16 @@ export default function NotificationsPage() {
     return notif.alertLevel === filter
   })
 
+  // Agrupar notificaciones por loanGroupId
+  const groupedNotifications = filteredNotifications.reduce((groups, notif) => {
+    const groupId = notif.loan.loanGroupId || notif.loanId
+    if (!groups[groupId]) {
+      groups[groupId] = []
+    }
+    groups[groupId].push(notif)
+    return groups
+  }, {} as Record<string, LoanNotification[]>)
+
   const getAlertColor = (level: string) => {
     switch (level) {
       case '24h': return 'bg-yellow-100 border-yellow-300 text-yellow-800'
@@ -59,6 +69,32 @@ export default function NotificationsPage() {
       toast({
         title: "Éxito",
         description: "Elemento devuelto correctamente",
+      })
+      refresh()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo procesar la devolución",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleReturnLoanGroup = async (groupNotifs: LoanNotification[]) => {
+    const count = groupNotifs.length
+    if (!confirm(`¿Confirmar la devolución de ${count} ${count === 1 ? 'elemento' : 'elementos'}?`)) {
+      return
+    }
+
+    try {
+      // Devolver todos los elementos del grupo
+      for (const notif of groupNotifs) {
+        await returnLoan(notif.loanId)
+      }
+      
+      toast({
+        title: "Éxito",
+        description: `${count} ${count === 1 ? 'elemento devuelto' : 'elementos devueltos'} correctamente`,
       })
       refresh()
     } catch (error) {
@@ -156,7 +192,7 @@ export default function NotificationsPage() {
                 Cargando notificaciones...
               </CardContent>
             </Card>
-          ) : filteredNotifications.length === 0 ? (
+          ) : Object.keys(groupedNotifications).length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center text-gray-500">
                 {filter === 'all' 
@@ -165,83 +201,105 @@ export default function NotificationsPage() {
               </CardContent>
             </Card>
           ) : (
-            filteredNotifications.map((notif) => (
-              <Card
-                key={notif.loanId}
-                className={`border-2 ${getAlertColor(notif.alertLevel)} ${
-                  notif.shouldReport ? 'ring-2 ring-red-500' : ''
-                }`}
-              >
-                <CardContent className="pt-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4 flex-1">
-                      <div className={`p-3 rounded-full ${getAlertColor(notif.alertLevel)}`}>
-                        {getAlertIcon(notif.alertLevel)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-bold text-lg">{notif.itemName}</h3>
-                          <Badge className={getAlertColor(notif.alertLevel)}>
-                            {getAlertText(notif.alertLevel)}
-                          </Badge>
-                          {notif.shouldReport && (
-                            <Badge className="bg-red-600 text-white">
-                              REPORTAR A UNIVERSIDAD
-                            </Badge>
-                          )}
+            Object.entries(groupedNotifications).map(([groupId, groupNotifs]) => {
+              const firstNotif = groupNotifs[0]
+              const isMultiple = groupNotifs.length > 1
+              const maxAlertLevel = groupNotifs.reduce((max, n) => {
+                const levels = { '24h': 1, '3days': 2, '7days': 3 }
+                return levels[n.alertLevel] > levels[max.alertLevel] ? n : max
+              }, groupNotifs[0])
+
+              return (
+                <Card
+                  key={groupId}
+                  className={`border-2 ${getAlertColor(maxAlertLevel.alertLevel)} ${
+                    maxAlertLevel.shouldReport ? 'ring-2 ring-red-500' : ''
+                  }`}
+                >
+                  <CardContent className="pt-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-4 flex-1">
+                        <div className={`p-3 rounded-full ${getAlertColor(maxAlertLevel.alertLevel)}`}>
+                          {getAlertIcon(maxAlertLevel.alertLevel)}
                         </div>
-                        
-                        <div className="grid md:grid-cols-2 gap-4 mt-4">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-sm">
-                              <User className="w-4 h-4 text-gray-500" />
-                              <span className="font-medium">{notif.borrowerName}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <span>Cédula: {notif.borrowerDocument}</span>
-                            </div>
-                            {notif.loan.borrowerPhone && (
-                              <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <Phone className="w-4 h-4" />
-                                <span>{notif.loan.borrowerPhone}</span>
-                              </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-bold text-lg">{firstNotif.borrowerName}</h3>
+                            {isMultiple && (
+                              <Badge className="bg-blue-100 text-blue-800">
+                                {groupNotifs.length} elementos
+                              </Badge>
+                            )}
+                            <Badge className={getAlertColor(maxAlertLevel.alertLevel)}>
+                              {getAlertText(maxAlertLevel.alertLevel)}
+                            </Badge>
+                            {maxAlertLevel.shouldReport && (
+                              <Badge className="bg-red-600 text-white">
+                                REPORTAR A UNIVERSIDAD
+                              </Badge>
                             )}
                           </div>
                           
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-sm">
-                              <Package className="w-4 h-4 text-gray-500" />
-                              <span>Serie: {notif.loan.itemSerialNumber}</span>
+                          <div className="grid md:grid-cols-2 gap-4 mt-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 text-sm">
+                                <User className="w-4 h-4 text-gray-500" />
+                                <span className="font-medium">{firstNotif.borrowerName}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <span>Cédula: {firstNotif.borrowerDocument}</span>
+                              </div>
+                              {firstNotif.loan.borrowerPhone && (
+                                <div className="flex items-center gap-2 text-sm text-gray-600">
+                                  <Phone className="w-4 h-4" />
+                                  <span>{firstNotif.loan.borrowerPhone}</span>
+                                </div>
+                              )}
                             </div>
-                            <div className="text-sm text-gray-600">
-                              Fecha préstamo: {notif.loan.loanDate.toLocaleDateString()}
-                            </div>
-                            <div className="text-sm font-bold text-red-600">
-                              {notif.daysOverdue} {notif.daysOverdue === 1 ? 'día' : 'días'} prestado
+                            
+                            <div className="space-y-2">
+                              <div className="text-sm text-gray-600">
+                                Fecha préstamo: {firstNotif.loan.loanDate.toLocaleDateString()}
+                              </div>
+                              <div className="text-sm font-bold text-red-600">
+                                {maxAlertLevel.daysOverdue} {maxAlertLevel.daysOverdue === 1 ? 'día' : 'días'} prestado
+                              </div>
                             </div>
                           </div>
+
+                          {/* Lista de elementos */}
+                          <div className="border-t pt-3 mt-3">
+                            <p className="text-xs font-semibold text-gray-500 mb-2">ELEMENTOS:</p>
+                            <div className="space-y-1">
+                              {groupNotifs.map((notif) => (
+                                <div key={notif.loanId} className="text-sm text-gray-700">
+                                  • {notif.itemName} (Serie: {notif.loan.itemSerialNumber})
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {maxAlertLevel.shouldReport && (
+                            <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg">
+                              <p className="text-sm text-red-800 font-medium">
+                                ⚠️ {isMultiple ? 'Estos préstamos deben' : 'Este préstamo debe'} ser reportado{isMultiple ? 's' : ''} a la universidad por exceder el tiempo máximo permitido.
+                              </p>
+                            </div>
+                          )}
                         </div>
-
-                        {notif.shouldReport && (
-                          <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg">
-                            <p className="text-sm text-red-800 font-medium">
-                              ⚠️ Este préstamo debe ser reportado a la universidad por exceder el tiempo máximo permitido.
-                            </p>
-                          </div>
-                        )}
                       </div>
-                    </div>
 
-                    <Button
-                      onClick={() => handleReturnLoan(notif)}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      Marcar como Devuelto
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                      <Button
+                        onClick={() => handleReturnLoanGroup(groupNotifs)}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        Devolver {isMultiple ? 'Todo' : ''}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })
           )}
         </div>
       </div>

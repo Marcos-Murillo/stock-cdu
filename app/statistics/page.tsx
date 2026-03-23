@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { getDetailedStats, getDamageReports, getLoans } from "@/lib/firebase"
 import type { DamageReport, Loan } from "@/lib/types"
 import Navigation from "@/components/navigation"
+import { RouteGuard } from "@/components/route-guard"
 
 interface ItemStat {
   id?: string
@@ -471,23 +472,27 @@ export default function StatisticsPage() {
 
   if (loading) {
     return (
+      <RouteGuard>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
         <Navigation />
         <div className="container mx-auto px-4 py-8">
           <div className="text-center">Cargando estadísticas...</div>
         </div>
       </div>
+      </RouteGuard>
     )
   }
 
   if (!stats) {
     return (
+      <RouteGuard>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
         <Navigation />
         <div className="container mx-auto px-4 py-8">
           <div className="text-center text-red-600">Error al cargar estadísticas</div>
         </div>
       </div>
+      </RouteGuard>
     )
   }
 
@@ -536,6 +541,7 @@ export default function StatisticsPage() {
     .sort(([, a], [, b]) => b.totalLoans - a.totalLoans)
 
   return (
+    <RouteGuard>
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
       <Navigation />
       <div className="container mx-auto px-4 py-8">
@@ -947,5 +953,6 @@ export default function StatisticsPage() {
         </Card>
       </div>
     </div>
+    </RouteGuard>
   )
 }

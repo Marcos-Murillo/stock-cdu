@@ -17,6 +17,7 @@ import Navigation from "@/components/navigation"
 import DamageReportModal from "@/components/damage-report-modal"
 import EditItemModal from "@/components/edit-item-modal"
 import { DropdownMenu, DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { RouteGuard } from "@/components/route-guard"
 
 export default function InventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([])
@@ -224,6 +225,7 @@ export default function InventoryPage() {
   }
 
   return (
+    <RouteGuard>
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
       <Navigation />
       <div className="container mx-auto px-4 py-8">
@@ -453,5 +455,6 @@ export default function InventoryPage() {
         />
       </div>
     </div>
+    </RouteGuard>
   )
 }
