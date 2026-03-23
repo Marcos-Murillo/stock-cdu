@@ -52,6 +52,12 @@ export interface DamageReport {
   severity: "low" | "medium" | "high"
 }
 
+export interface CartItem {
+  itemName: string
+  quantity: number
+  items: InventoryItem[]
+}
+
 export interface BorrowerSuggestion {
   name: string
   document: string
