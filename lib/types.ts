@@ -58,6 +58,16 @@ export interface CartItem {
   items: InventoryItem[]
 }
 
+export interface LoanNotification {
+  loanId: string
+  borrowerName: string
+  borrowerDocument: string
+  itemName: string
+  alertLevel: "warning" | "critical" | "overdue"
+  shouldReport: boolean
+  loan: Loan
+}
+
 export interface BorrowerSuggestion {
   name: string
   document: string
