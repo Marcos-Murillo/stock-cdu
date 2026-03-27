@@ -19,11 +19,14 @@ import EditItemModal from "@/components/edit-item-modal"
 import { DropdownMenu, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { RouteGuard } from "@/components/route-guard"
 
+const PAGE_SIZE = 10
+
 export default function InventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([])
   const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [locationFilter, setLocationFilter] = useState<string>("")
+  const [currentPage, setCurrentPage] = useState(1)
   const [showAddForm, setShowAddForm] = useState(false)
   const [selectedItemForDamage, setSelectedItemForDamage] = useState<InventoryItem | null>(null)
   const [selectedItemForEdit, setSelectedItemForEdit] = useState<InventoryItem | null>(null)
@@ -53,7 +56,23 @@ export default function InventoryPage() {
     }
 
     setFilteredItems(filtered)
+    setCurrentPage(1)
   }, [items, searchTerm, locationFilter])
+
+  // Agrupar items por nombre + ubicación + estado
+  const groupedRows = Object.values(
+    filteredItems.reduce((acc, item) => {
+      const key = `${item.name}||${item.location || ""}||${item.status}`
+      if (!acc[key]) {
+        acc[key] = { name: item.name, location: item.location, status: item.status, items: [] }
+      }
+      acc[key].items.push(item)
+      return acc
+    }, {} as Record<string, { name: string; location?: string; status: string; items: InventoryItem[] }>)
+  )
+
+  const totalPages = Math.ceil(groupedRows.length / PAGE_SIZE)
+  const paginatedRows = groupedRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   const loadInventory = async () => {
     try {
@@ -348,7 +367,7 @@ export default function InventoryPage() {
         <Card className="border-blue-200">
           <CardHeader>
             <CardTitle className="text-blue-800">Stock Disponible</CardTitle>
-            <CardDescription>{filteredItems.length} elementos en inventario</CardDescription>
+            <CardDescription>{groupedRows.length} grupos · {filteredItems.length} elementos en total</CardDescription>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -374,64 +393,114 @@ export default function InventoryPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {filteredItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between p-4 border border-blue-200 rounded-lg bg-white"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-blue-800">{item.name}</h3>
-                      {item.location && (
-                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                          {item.location}
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600">Serie: {item.serialNumber}</p>
-                    {item.description && <p className="text-sm text-gray-500">{item.description}</p>}
-                    {item.loanCount && item.loanCount > 0 && (
-                      <p className="text-xs text-blue-600">Prestado {item.loanCount} veces</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {getStatusBadge(item.status)}
-                    <DropdownMenu
-                      trigger={
-                        <Button variant="outline" size="sm">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      }
-                    >
-                      <DropdownMenuItem onClick={() => setSelectedItemForEdit(item)}>
-                        <Edit className="w-4 h-4 mr-2" />
-                        Editar
-                      </DropdownMenuItem>
-                      {item.status === "loaned" && (
-                        <DropdownMenuItem onClick={() => handleMarkAsAvailable(item)}>
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Marcar como Disponible
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem onClick={() => setSelectedItemForDamage(item)}>
-                        <AlertTriangle className="w-4 h-4 mr-2" />
-                        Reportar Daño
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleRemoveItem(item.id!)} variant="destructive">
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Eliminar
-                      </DropdownMenuItem>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              ))}
-              {filteredItems.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  {searchTerm ? "No se encontraron elementos" : "No hay elementos en el inventario"}
-                </div>
-              )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-blue-200 bg-blue-50">
+                    <th className="text-left py-3 px-4 font-semibold text-blue-800">Elemento</th>
+                    <th className="text-left py-3 px-4 font-semibold text-blue-800">Ubicación</th>
+                    <th className="text-left py-3 px-4 font-semibold text-blue-800">Estado</th>
+                    <th className="text-center py-3 px-4 font-semibold text-blue-800">Cantidad</th>
+                    <th className="text-center py-3 px-4 font-semibold text-blue-800">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-10 text-gray-500">
+                        {searchTerm ? "No se encontraron elementos" : "No hay elementos en el inventario"}
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedRows.map((row, idx) => (
+                      <tr
+                        key={`${row.name}-${row.location}-${row.status}-${idx}`}
+                        className="border-b border-gray-100 hover:bg-blue-50/40 transition-colors"
+                      >
+                        <td className="py-3 px-4 font-medium text-blue-800">{row.name}</td>
+                        <td className="py-3 px-4 text-gray-600">
+                          {row.location ? (
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                              {row.location}
+                            </Badge>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">{getStatusBadge(row.status)}</td>
+                        <td className="py-3 px-4 text-center font-semibold text-blue-700">{row.items.length}</td>
+                        <td className="py-3 px-4 text-center">
+                          <DropdownMenu
+                            trigger={
+                              <Button variant="outline" size="sm">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            }
+                          >
+                            <DropdownMenuItem onClick={() => setSelectedItemForEdit(row.items[0])}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                            {row.status === "loaned" && (
+                              <DropdownMenuItem onClick={() => handleMarkAsAvailable(row.items[0])}>
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                Marcar como Disponible
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onClick={() => setSelectedItemForDamage(row.items[0])}>
+                              <AlertTriangle className="w-4 h-4 mr-2" />
+                              Reportar Daño
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleRemoveItem(row.items[0].id!)} variant="destructive">
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Eliminar
+                            </DropdownMenuItem>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
+
+            {/* Paginación */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                <p className="text-sm text-gray-500">
+                  Mostrando {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, groupedRows.length)} de {groupedRows.length} grupos
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Anterior
+                  </Button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <Button
+                      key={page}
+                      variant={page === currentPage ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                      className={page === currentPage ? "bg-blue-600" : ""}
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Siguiente
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

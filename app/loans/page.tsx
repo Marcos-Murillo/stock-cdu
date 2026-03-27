@@ -575,19 +575,20 @@ export default function LoansPage() {
                                 </div>
                               </div>
 
-                              {/* Lista de elementos */}
+                              {/* Lista de elementos agrupados por nombre */}
                               <div className="border-t pt-3 mt-3">
                                 <p className="text-xs font-semibold text-gray-500 mb-2">ELEMENTOS PRESTADOS:</p>
-                                <div className="space-y-2">
-                                  {groupLoans.map((loan) => (
-                                    <div
-                                      key={loan.id}
-                                      className="flex items-center justify-between p-2 bg-gray-50 rounded"
-                                    >
-                                      <div className="flex-1">
-                                        <p className="text-sm font-medium text-gray-800">{loan.itemName}</p>
-                                        <p className="text-xs text-gray-500">Serie: {loan.itemSerialNumber}</p>
-                                      </div>
+                                <div className="space-y-1">
+                                  {Object.entries(
+                                    groupLoans.reduce((acc, loan) => {
+                                      acc[loan.itemName] = (acc[loan.itemName] || 0) + 1
+                                      return acc
+                                    }, {} as Record<string, number>)
+                                  ).map(([name, qty]) => (
+                                    <div key={name} className="flex items-center p-2 bg-gray-50 rounded">
+                                      <p className="text-sm font-medium text-gray-800">
+                                        {name}{qty > 1 ? ` - ${qty}` : ""}
+                                      </p>
                                     </div>
                                   ))}
                                 </div>

@@ -267,13 +267,18 @@ export default function NotificationsPage() {
                             </div>
                           </div>
 
-                          {/* Lista de elementos */}
+                          {/* Lista de elementos agrupados por nombre */}
                           <div className="border-t pt-3 mt-3">
                             <p className="text-xs font-semibold text-gray-500 mb-2">ELEMENTOS:</p>
                             <div className="space-y-1">
-                              {groupNotifs.map((notif) => (
-                                <div key={notif.loanId} className="text-sm text-gray-700">
-                                  • {notif.itemName} (Serie: {notif.loan.itemSerialNumber})
+                              {Object.entries(
+                                groupNotifs.reduce((acc, notif) => {
+                                  acc[notif.itemName] = (acc[notif.itemName] || 0) + 1
+                                  return acc
+                                }, {} as Record<string, number>)
+                              ).map(([name, qty]) => (
+                                <div key={name} className="text-sm text-gray-700">
+                                  • {name}{qty > 1 ? ` - ${qty}` : ""}
                                 </div>
                               ))}
                             </div>
