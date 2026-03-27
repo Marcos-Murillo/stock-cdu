@@ -30,6 +30,7 @@ export default function InventoryPage() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [selectedItemForDamage, setSelectedItemForDamage] = useState<InventoryItem | null>(null)
   const [selectedItemForEdit, setSelectedItemForEdit] = useState<InventoryItem | null>(null)
+  const [selectedGroupForEdit, setSelectedGroupForEdit] = useState<InventoryItem[]>([])
   const [formData, setFormData] = useState({
     name: "",
     serialNumber: "",
@@ -437,7 +438,10 @@ export default function InventoryPage() {
                               </Button>
                             }
                           >
-                            <DropdownMenuItem onClick={() => setSelectedItemForEdit(row.items[0])}>
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedItemForEdit(row.items[0])
+                              setSelectedGroupForEdit(row.items)
+                            }}>
                               <Edit className="w-4 h-4 mr-2" />
                               Editar
                             </DropdownMenuItem>
@@ -518,9 +522,11 @@ export default function InventoryPage() {
 
         <EditItemModal
           item={selectedItemForEdit}
+          groupItems={selectedGroupForEdit}
           isOpen={!!selectedItemForEdit}
-          onClose={() => setSelectedItemForEdit(null)}
+          onClose={() => { setSelectedItemForEdit(null); setSelectedGroupForEdit([]) }}
           onSave={handleEditItem}
+          onRefresh={loadInventory}
         />
       </div>
     </div>

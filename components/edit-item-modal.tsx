@@ -6,21 +6,25 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { addItem, removeItem } from "@/lib/firebase"
 import type { InventoryItem } from "@/lib/types"
 
 interface EditItemModalProps {
   item: InventoryItem | null
+  groupItems?: InventoryItem[]
   isOpen: boolean
   onClose: () => void
   onSave: (itemId: string, updates: Partial<InventoryItem>) => Promise<void>
+  onRefresh?: () => void
 }
 
-export default function EditItemModal({ item, isOpen, onClose, onSave }: EditItemModalProps) {
+export default function EditItemModal({ item, groupItems, isOpen, onClose, onSave, onRefresh }: EditItemModalProps) {
   const [formData, setFormData] = useState({
     name: "",
     serialNumber: "",
     description: "",
     location: "" as "Auditorio 5" | "Bodega" | "",
+    quantity: 1,
   })
   const [loading, setLoading] = useState(false)
 
@@ -31,9 +35,10 @@ export default function EditItemModal({ item, isOpen, onClose, onSave }: EditIte
         serialNumber: item.serialNumber,
         description: item.description || "",
         location: (item.location || "") as "Auditorio 5" | "Bodega" | "",
+        quantity: groupItems?.length ?? 1,
       })
     }
-  }, [item])
+  }, [item, groupItems])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,12 +46,45 @@ export default function EditItemModal({ item, isOpen, onClose, onSave }: EditIte
 
     setLoading(true)
     try {
-      await onSave(item.id, {
-        name: formData.name,
-        serialNumber: formData.serialNumber,
-        description: formData.description,
-        location: formData.location || undefined,
-      })
+      const currentItems = groupItems ?? [item]
+      const currentQty = currentItems.length
+      const newQty = formData.quantity
+
+      // Actualizar nombre, descripción y ubicación en todos los items del grupo
+      for (const gi of currentItems) {
+        await onSave(gi.id!, {
+          name: formData.name,
+          description: formData.description,
+          location: formData.location || undefined,
+        })
+      }
+
+      // Ajustar cantidad
+      if (newQty > currentQty) {
+        // Agregar los que faltan
+        const toAdd = newQty - currentQty
+        for (let i = 1; i <= toAdd; i++) {
+          const idx = currentQty + i
+          await addItem({
+            name: formData.name,
+            serialNumber: `${item.serialNumber.replace(/-\d+$/, "")}-${String(idx).padStart(2, "0")}`,
+            description: formData.description,
+            location: formData.location || undefined,
+            status: "available",
+            createdAt: new Date(),
+          })
+        }
+      } else if (newQty < currentQty) {
+        // Eliminar los sobrantes (solo los disponibles al final)
+        const available = currentItems.filter((i) => i.status === "available")
+        const toRemove = currentQty - newQty
+        const candidates = available.slice(-toRemove)
+        for (const c of candidates) {
+          await removeItem(c.id!)
+        }
+      }
+
+      onRefresh?.()
       onClose()
     } catch (error) {
       console.error("Error updating item:", error)
@@ -54,6 +92,9 @@ export default function EditItemModal({ item, isOpen, onClose, onSave }: EditIte
       setLoading(false)
     }
   }
+
+  const availableCount = (groupItems ?? [item]).filter((i) => i?.status === "available").length
+  const currentQty = groupItems?.length ?? 1
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -70,16 +111,6 @@ export default function EditItemModal({ item, isOpen, onClose, onSave }: EditIte
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Ej: Guitarra acústica"
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-serialNumber">Número de Serie *</Label>
-              <Input
-                id="edit-serialNumber"
-                value={formData.serialNumber}
-                onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
-                placeholder="Ej: GTA-001"
                 required
               />
             </div>
@@ -106,6 +137,23 @@ export default function EditItemModal({ item, isOpen, onClose, onSave }: EditIte
                   <SelectItem value="Bodega">Bodega</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label htmlFor="edit-quantity">Cantidad</Label>
+              <Input
+                id="edit-quantity"
+                type="number"
+                min={currentQty - availableCount}
+                max={200}
+                value={formData.quantity}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value)
+                  if (!isNaN(val)) setFormData({ ...formData, quantity: val })
+                }}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Actual: {currentQty} · {availableCount} disponibles para eliminar
+              </p>
             </div>
           </div>
           <DialogFooter>
