@@ -661,7 +661,6 @@ export default function LoansPage() {
         </div>
       </div>
     </div>
-    </RouteGuard>
 
     {partialReturnGroup && (
       <PartialReturnDialog
@@ -672,5 +671,6 @@ export default function LoansPage() {
         borrowerName={partialReturnGroup[0].borrowerName}
       />
     )}
+    </RouteGuard>
   )
 }
