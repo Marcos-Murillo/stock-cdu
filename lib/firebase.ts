@@ -217,7 +217,12 @@ export const returnLoanGroupPartial = async (
     for (let i = 0; i < groupLoans.length; i++) {
       const loan = groupLoans[i]
       const loanRef = doc(db, "loans", loan.id)
-      const updateData: Record<string, unknown> = {
+      const updateData: {
+        status: string
+        returnDate: ReturnType<typeof Timestamp.now>
+        missingCount?: number
+        missingNotes?: string
+      } = {
         status: "returned",
         returnDate: Timestamp.now(),
       }
