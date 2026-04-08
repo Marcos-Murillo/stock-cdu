@@ -210,8 +210,7 @@ export const getLoans = async (): Promise<Loan[]> => {
 // guarda missingCount y missingNotes en el primer préstamo del grupo
 export const returnLoanGroupPartial = async (
   groupLoans: { id: string; itemId: string }[],
-  missingCount: number,
-  missingNotes: string
+  missingItems: { name: string; missing: number }[]
 ) => {
   try {
     for (let i = 0; i < groupLoans.length; i++) {
@@ -220,16 +219,13 @@ export const returnLoanGroupPartial = async (
       const updateData: {
         status: string
         returnDate: ReturnType<typeof Timestamp.now>
-        missingCount?: number
-        missingNotes?: string
+        missingItems?: { name: string; missing: number }[]
       } = {
         status: "returned",
         returnDate: Timestamp.now(),
       }
-      // Solo el primer doc del grupo lleva el resumen de faltantes
       if (i === 0) {
-        updateData.missingCount = missingCount
-        if (missingNotes) updateData.missingNotes = missingNotes
+        updateData.missingItems = missingItems
       }
       await updateDoc(loanRef, updateData)
       await updateItemStatus(loan.itemId, "available")

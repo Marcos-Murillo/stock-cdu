@@ -66,7 +66,7 @@ export default function ReportsPage() {
   // Devoluciones con faltantes: préstamos devueltos que tienen missingCount > 0
   // Agrupados por loanGroupId, tomamos solo el primero de cada grupo (que lleva el resumen)
   const loansWithMissing = loans
-    .filter((loan) => loan.status === "returned" && loan.missingCount && loan.missingCount > 0)
+    .filter((loan) => loan.status === "returned" && loan.missingItems && loan.missingItems.length > 0)
     .sort((a, b) => (b.returnDate?.getTime() ?? 0) - (a.returnDate?.getTime() ?? 0))
 
   if (loading) {
@@ -232,15 +232,12 @@ export default function ReportsPage() {
             <CardContent>
               <div className="space-y-3">
                 {loansWithMissing.map((loan) => (
-                  <div
-                    key={loan.id}
-                    className="flex items-start justify-between p-3 border border-orange-200 rounded-lg bg-white"
-                  >
+                    <div key={loan.id} className="flex items-start justify-between p-3 border border-orange-200 rounded-lg bg-white">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-medium text-orange-800">{loan.borrowerName}</span>
                         <Badge className="bg-orange-100 text-orange-800 border border-orange-300">
-                          {loan.missingCount} faltante{loan.missingCount !== 1 ? "s" : ""}
+                          {loan.missingItems!.reduce((s, i) => s + i.missing, 0)} faltante(s)
                         </Badge>
                       </div>
                       <p className="text-sm text-gray-600">
@@ -251,9 +248,14 @@ export default function ReportsPage() {
                         Préstamo: {loan.loanDate.toLocaleDateString()} ·{" "}
                         Devolución: {loan.returnDate?.toLocaleDateString() ?? "—"}
                       </p>
-                      {loan.missingNotes && (
-                        <p className="text-xs text-orange-700 mt-1 italic">"{loan.missingNotes}"</p>
-                      )}
+                      <div className="mt-2 space-y-1">
+                        {loan.missingItems!.map((mi) => (
+                          <div key={mi.name} className="flex items-center gap-2 text-xs text-orange-700">
+                            <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />
+                            <span>{mi.name}: <strong>{mi.missing}</strong> faltante(s)</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ))}

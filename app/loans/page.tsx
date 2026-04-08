@@ -308,17 +308,16 @@ export default function LoansPage() {
     }
   }
 
-  const handlePartialReturn = async (missingCount: number, missingNotes: string) => {
+  const handlePartialReturn = async (missingItems: { name: string; missing: number }[]) => {
     if (!partialReturnGroup) return
     try {
       await returnLoanGroupPartial(
         partialReturnGroup.map((l) => ({ id: l.id!, itemId: l.itemId })),
-        missingCount,
-        missingNotes
+        missingItems
       )
       toast({
         title: "Devolución registrada",
-        description: `Devolución con ${missingCount} faltante(s) registrada`,
+        description: `Devolución con faltantes registrada`,
       })
       setPartialReturnGroup(null)
       loadData()
@@ -667,7 +666,12 @@ export default function LoansPage() {
         isOpen={true}
         onClose={() => setPartialReturnGroup(null)}
         onConfirm={handlePartialReturn}
-        totalItems={partialReturnGroup.length}
+        itemGroups={Object.entries(
+          partialReturnGroup.reduce((acc, l) => {
+            acc[l.itemName] = (acc[l.itemName] || 0) + 1
+            return acc
+          }, {} as Record<string, number>)
+        ).map(([name, total]) => ({ name, total }))}
         borrowerName={partialReturnGroup[0].borrowerName}
       />
     )}
