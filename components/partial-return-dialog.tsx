@@ -48,9 +48,11 @@ export default function PartialReturnDialog({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-orange-700">
-            <AlertTriangle className="w-5 h-5" />
-            Regreso con Faltas
+          <DialogTitle>
+            <span className="flex items-center gap-2 text-orange-700">
+              <AlertTriangle className="w-5 h-5" />
+              Regreso con Faltas
+            </span>
           </DialogTitle>
         </DialogHeader>
 
