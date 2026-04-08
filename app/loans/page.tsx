@@ -9,13 +9,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { getInventory, getLoans, createLoan, returnLoan } from "@/lib/firebase"
+import { getInventory, getLoans, createLoan, returnLoan, returnLoanGroupPartial } from "@/lib/firebase"
 import type { InventoryItem, Loan, CartItem } from "@/lib/types"
 import Navigation from "@/components/navigation"
 import BorrowerAutocomplete from "@/components/borrower-autocomplete"
 import { useRouter } from "next/navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RouteGuard } from "@/components/route-guard"
+import PartialReturnDialog from "@/components/partial-return-dialog"
 
 export default function LoansPage() {
   const [availableItems, setAvailableItems] = useState<InventoryItem[]>([])
@@ -43,6 +44,9 @@ export default function LoansPage() {
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
+
+  // Estado para el dialog de devolución parcial
+  const [partialReturnGroup, setPartialReturnGroup] = useState<Loan[] | null>(null)
 
   useEffect(() => {
     loadData()
@@ -287,11 +291,9 @@ export default function LoansPage() {
     }
 
     try {
-      // Devolver todos los elementos del grupo
       for (const loan of groupLoans) {
         await returnLoan(loan.id!)
       }
-      
       toast({
         title: "Éxito",
         description: `${count} ${count === 1 ? 'elemento devuelto' : 'elementos devueltos'} correctamente`,
@@ -303,6 +305,30 @@ export default function LoansPage() {
         description: "No se pudo procesar la devolución",
         variant: "destructive",
       })
+    }
+  }
+
+  const handlePartialReturn = async (missingCount: number, missingNotes: string) => {
+    if (!partialReturnGroup) return
+    try {
+      await returnLoanGroupPartial(
+        partialReturnGroup.map((l) => ({ id: l.id!, itemId: l.itemId })),
+        missingCount,
+        missingNotes
+      )
+      toast({
+        title: "Devolución registrada",
+        description: `Devolución con ${missingCount} faltante(s) registrada`,
+      })
+      setPartialReturnGroup(null)
+      loadData()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo procesar la devolución",
+        variant: "destructive",
+      })
+      throw error
     }
   }
 
@@ -606,6 +632,17 @@ export default function LoansPage() {
                                 <Package className="w-4 h-4 mr-1" />
                                 Devolver {isMultiple ? 'Todo' : ''}
                               </Button>
+                              {isMultiple && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setPartialReturnGroup(groupLoans)}
+                                  className="border-orange-500 text-orange-600 hover:bg-orange-50"
+                                >
+                                  <Package className="w-4 h-4 mr-1" />
+                                  Regreso con Faltas
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -625,5 +662,15 @@ export default function LoansPage() {
       </div>
     </div>
     </RouteGuard>
+
+    {partialReturnGroup && (
+      <PartialReturnDialog
+        isOpen={true}
+        onClose={() => setPartialReturnGroup(null)}
+        onConfirm={handlePartialReturn}
+        totalItems={partialReturnGroup.length}
+        borrowerName={partialReturnGroup[0].borrowerName}
+      />
+    )}
   )
 }

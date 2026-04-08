@@ -5,6 +5,7 @@ import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
   doc,
   updateDoc,
   deleteDoc,
@@ -148,7 +149,11 @@ export const updateItemStatus = async (itemId: string, status: "available" | "lo
 
 export const updateItem = async (itemId: string, updates: Partial<InventoryItem>) => {
   try {
-    await updateDoc(doc(db, "inventory", itemId), updates)
+    // Firestore no acepta undefined — filtrar campos con valor undefined
+    const cleanUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([, v]) => v !== undefined)
+    )
+    await updateDoc(doc(db, "inventory", itemId), cleanUpdates)
   } catch (error) {
     console.error("Error updating item:", error)
     if (error instanceof Error) {
@@ -201,22 +206,55 @@ export const getLoans = async (): Promise<Loan[]> => {
   }
 }
 
+// Devolución con faltantes: marca todos los préstamos del grupo como devueltos,
+// guarda missingCount y missingNotes en el primer préstamo del grupo
+export const returnLoanGroupPartial = async (
+  groupLoans: { id: string; itemId: string }[],
+  missingCount: number,
+  missingNotes: string
+) => {
+  try {
+    for (let i = 0; i < groupLoans.length; i++) {
+      const loan = groupLoans[i]
+      const loanRef = doc(db, "loans", loan.id)
+      const updateData: Record<string, unknown> = {
+        status: "returned",
+        returnDate: Timestamp.now(),
+      }
+      // Solo el primer doc del grupo lleva el resumen de faltantes
+      if (i === 0) {
+        updateData.missingCount = missingCount
+        if (missingNotes) updateData.missingNotes = missingNotes
+      }
+      await updateDoc(loanRef, updateData)
+      await updateItemStatus(loan.itemId, "available")
+    }
+  } catch (error) {
+    console.error("Error returning loan group partial:", error)
+    if (error instanceof Error) {
+      throw new Error(`Error al procesar devolución parcial: ${error.message}`)
+    }
+    throw new Error("Error desconocido al procesar devolución parcial")
+  }
+}
+
 export const returnLoan = async (loanId: string) => {
   try {
-    const loanDoc = doc(db, "loans", loanId)
-    const loans = await getLoans()
-    const loan = loans.find((l) => l.id === loanId)
+    const loanRef = doc(db, "loans", loanId)
+    const loanSnap = await getDoc(loanRef)
 
-    if (!loan) {
+    if (!loanSnap.exists()) {
       throw new Error("Préstamo no encontrado")
     }
 
-    await updateDoc(loanDoc, {
+    const loanData = loanSnap.data()
+
+    await updateDoc(loanRef, {
       status: "returned",
       returnDate: Timestamp.now(),
     })
 
-    await updateItemStatus(loan.itemId, "available")
+    await updateItemStatus(loanData.itemId, "available")
   } catch (error) {
     console.error("Error returning loan:", error)
     if (error instanceof Error) {

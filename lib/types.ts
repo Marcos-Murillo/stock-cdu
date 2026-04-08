@@ -39,6 +39,9 @@ export interface Loan {
   status: "active" | "returned"
   notes?: string
   loanGroupId?: string
+  // Devolución parcial: cuántos implementos del grupo no fueron entregados
+  missingCount?: number
+  missingNotes?: string
 }
 
 export interface DamageReport {

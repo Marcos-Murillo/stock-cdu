@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { BarChart3, Package, Users, TrendingUp } from "lucide-react"
+import { BarChart3, Package, Users, TrendingUp, AlertTriangle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { getInventory, getLoans } from "@/lib/firebase"
@@ -62,6 +62,12 @@ export default function ReportsPage() {
     .filter((loan) => loan.status === "active")
     .sort((a, b) => b.loanDate.getTime() - a.loanDate.getTime())
     .slice(0, 5)
+
+  // Devoluciones con faltantes: préstamos devueltos que tienen missingCount > 0
+  // Agrupados por loanGroupId, tomamos solo el primero de cada grupo (que lleva el resumen)
+  const loansWithMissing = loans
+    .filter((loan) => loan.status === "returned" && loan.missingCount && loan.missingCount > 0)
+    .sort((a, b) => (b.returnDate?.getTime() ?? 0) - (a.returnDate?.getTime() ?? 0))
 
   if (loading) {
     return (
@@ -212,6 +218,49 @@ export default function ReportsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Devoluciones con Faltantes */}
+        {loansWithMissing.length > 0 && (
+          <Card className="mt-6 border-orange-300 bg-orange-50">
+            <CardHeader>
+              <CardTitle className="text-orange-800 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" />
+                Devoluciones con Faltantes ({loansWithMissing.length})
+              </CardTitle>
+              <CardDescription>Préstamos devueltos con implementos no entregados</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {loansWithMissing.map((loan) => (
+                  <div
+                    key={loan.id}
+                    className="flex items-start justify-between p-3 border border-orange-200 rounded-lg bg-white"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-orange-800">{loan.borrowerName}</span>
+                        <Badge className="bg-orange-100 text-orange-800 border border-orange-300">
+                          {loan.missingCount} faltante{loan.missingCount !== 1 ? "s" : ""}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        Cédula: {loan.borrowerDocument}
+                        {loan.borrowerPhone && ` · Tel: ${loan.borrowerPhone}`}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Préstamo: {loan.loanDate.toLocaleDateString()} ·{" "}
+                        Devolución: {loan.returnDate?.toLocaleDateString() ?? "—"}
+                      </p>
+                      {loan.missingNotes && (
+                        <p className="text-xs text-orange-700 mt-1 italic">"{loan.missingNotes}"</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Estado del Inventario */}
         <Card className="mt-6 border-blue-200">

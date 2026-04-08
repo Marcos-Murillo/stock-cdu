@@ -7,14 +7,18 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useNotifications } from "@/hooks/use-notifications"
-import { returnLoan } from "@/lib/firebase"
+import { returnLoan, returnLoanGroupPartial } from "@/lib/firebase"
 import Navigation from "@/components/navigation"
 import type { LoanNotification } from "@/lib/types"
+import PartialReturnDialog from "@/components/partial-return-dialog"
 
 export default function NotificationsPage() {
   const { notifications, loading, criticalCount, totalCount, refresh } = useNotifications()
   const [filter, setFilter] = useState<'all' | '24h' | '3days' | '7days' | 'critical'>('all')
   const { toast } = useToast()
+
+  // Estado para el dialog de devolución parcial
+  const [partialReturnGroup, setPartialReturnGroup] = useState<LoanNotification[] | null>(null)
 
   const filteredNotifications = notifications.filter((notif) => {
     if (filter === 'all') return true
@@ -87,11 +91,9 @@ export default function NotificationsPage() {
     }
 
     try {
-      // Devolver todos los elementos del grupo
       for (const notif of groupNotifs) {
         await returnLoan(notif.loanId)
       }
-      
       toast({
         title: "Éxito",
         description: `${count} ${count === 1 ? 'elemento devuelto' : 'elementos devueltos'} correctamente`,
@@ -106,7 +108,32 @@ export default function NotificationsPage() {
     }
   }
 
+  const handlePartialReturn = async (missingCount: number, missingNotes: string) => {
+    if (!partialReturnGroup) return
+    try {
+      await returnLoanGroupPartial(
+        partialReturnGroup.map((n) => ({ id: n.loanId, itemId: n.loan.itemId })),
+        missingCount,
+        missingNotes
+      )
+      toast({
+        title: "Devolución registrada",
+        description: `Devolución con ${missingCount} faltante(s) registrada`,
+      })
+      setPartialReturnGroup(null)
+      refresh()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo procesar la devolución",
+        variant: "destructive",
+      })
+      throw error
+    }
+  }
+
   return (
+    <>
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
       <Navigation />
       <div className="container mx-auto px-4 py-8">
@@ -294,12 +321,23 @@ export default function NotificationsPage() {
                         </div>
                       </div>
 
-                      <Button
-                        onClick={() => handleReturnLoanGroup(groupNotifs)}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        Devolver {isMultiple ? 'Todo' : ''}
-                      </Button>
+                      <div className="flex flex-col gap-2">
+                        <Button
+                          onClick={() => handleReturnLoanGroup(groupNotifs)}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          Devolver {isMultiple ? 'Todo' : ''}
+                        </Button>
+                        {isMultiple && (
+                          <Button
+                            variant="outline"
+                            onClick={() => setPartialReturnGroup(groupNotifs)}
+                            className="border-orange-500 text-orange-600 hover:bg-orange-50"
+                          >
+                            Regreso con Faltas
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -309,5 +347,16 @@ export default function NotificationsPage() {
         </div>
       </div>
     </div>
+
+    {partialReturnGroup && (
+      <PartialReturnDialog
+        isOpen={true}
+        onClose={() => setPartialReturnGroup(null)}
+        onConfirm={handlePartialReturn}
+        totalItems={partialReturnGroup.length}
+        borrowerName={partialReturnGroup[0].borrowerName}
+      />
+    )}
+    </>
   )
 }

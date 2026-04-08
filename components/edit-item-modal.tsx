@@ -52,11 +52,12 @@ export default function EditItemModal({ item, groupItems, isOpen, onClose, onSav
 
       // Actualizar nombre, descripción y ubicación en todos los items del grupo
       for (const gi of currentItems) {
-        await onSave(gi.id!, {
+        const updates: Partial<InventoryItem> = {
           name: formData.name,
           description: formData.description,
-          location: formData.location || undefined,
-        })
+        }
+        if (formData.location) updates.location = formData.location
+        await onSave(gi.id!, updates)
       }
 
       // Ajustar cantidad
