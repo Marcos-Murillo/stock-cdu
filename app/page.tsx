@@ -1,9 +1,25 @@
+"use client"
+
 import Link from "next/link"
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Package, Users, BarChart3, TrendingUp } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@/lib/auth-context"
 
 export default function HomePage() {
+  const { user, loading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!loading && user?.role === "monitor") {
+      router.replace("/loans")
+    }
+  }, [user, loading, router])
+
+  if (loading || user?.role === "monitor") return null
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
       <div className="container mx-auto px-4 py-8">
