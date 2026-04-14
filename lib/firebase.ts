@@ -259,12 +259,12 @@ export const returnLoansBatch = async (
       for (let j = 0; j < chunk.length; j++) {
         const loan = chunk[j]
         const loanRef = doc(db, "loans", loan.id)
-        const updateData: Record<string, unknown> = { status: "returned", returnDate: now }
         // Attach missingItems only to the very first loan of the first chunk
         if (i === 0 && j === 0 && missingItems) {
-          updateData.missingItems = missingItems
+          batch.update(loanRef, { status: "returned", returnDate: now, missingItems })
+        } else {
+          batch.update(loanRef, { status: "returned", returnDate: now })
         }
-        batch.update(loanRef, updateData)
         batch.update(doc(db, "inventory", loan.itemId), { status: "available" })
       }
 
