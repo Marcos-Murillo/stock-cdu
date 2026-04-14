@@ -296,7 +296,6 @@ export default function InventoryPage() {
                       id="quantity"
                       type="number"
                       min="1"
-                      max="500"
                       value={formData.quantity}
                       onChange={(e) => {
                         const value = e.target.value
