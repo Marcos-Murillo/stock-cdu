@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { addItem, removeItem } from "@/lib/firebase"
+import { useToast } from "@/hooks/use-toast"
 import type { InventoryItem } from "@/lib/types"
 
 interface EditItemModalProps {
@@ -19,6 +20,7 @@ interface EditItemModalProps {
 }
 
 export default function EditItemModal({ item, groupItems, isOpen, onClose, onSave, onRefresh }: EditItemModalProps) {
+  const { toast } = useToast()
   const [formData, setFormData] = useState({
     name: "",
     serialNumber: "",
@@ -46,27 +48,23 @@ export default function EditItemModal({ item, groupItems, isOpen, onClose, onSav
 
     setLoading(true)
     try {
+      // Actualizar nombre, descripción y ubicación en todos los items del grupo en paralelo
       const currentItems = groupItems ?? [item]
       const currentQty = currentItems.length
       const newQty = formData.quantity
 
-      // Actualizar nombre, descripción y ubicación en todos los items del grupo
-      for (const gi of currentItems) {
-        const updates: Partial<InventoryItem> = {
-          name: formData.name,
-          description: formData.description,
-        }
+      await Promise.all(currentItems.map((gi) => {
+        const updates: Partial<InventoryItem> = { name: formData.name, description: formData.description }
         if (formData.location) updates.location = formData.location
-        await onSave(gi.id!, updates)
-      }
+        return onSave(gi.id!, updates)
+      }))
 
       // Ajustar cantidad
       if (newQty > currentQty) {
-        // Agregar los que faltan
         const toAdd = newQty - currentQty
-        for (let i = 1; i <= toAdd; i++) {
-          const idx = currentQty + i
-          await addItem({
+        await Promise.all(Array.from({ length: toAdd }, (_, k) => {
+          const idx = currentQty + k + 1
+          return addItem({
             name: formData.name,
             serialNumber: `${item.serialNumber.replace(/-\d+$/, "")}-${String(idx).padStart(2, "0")}`,
             description: formData.description,
@@ -74,21 +72,20 @@ export default function EditItemModal({ item, groupItems, isOpen, onClose, onSav
             status: "available",
             createdAt: new Date(),
           })
-        }
+        }))
       } else if (newQty < currentQty) {
-        // Eliminar los sobrantes (solo los disponibles al final)
         const available = currentItems.filter((i) => i.status === "available")
         const toRemove = currentQty - newQty
         const candidates = available.slice(-toRemove)
-        for (const c of candidates) {
-          await removeItem(c.id!)
-        }
+        await Promise.all(candidates.map((c) => removeItem(c.id!)))
       }
 
+      toast({ title: "Éxito", description: "Elemento actualizado correctamente" })
       onRefresh?.()
       onClose()
     } catch (error) {
       console.error("Error updating item:", error)
+      toast({ title: "Error", description: "No se pudo actualizar el elemento", variant: "destructive" })
     } finally {
       setLoading(false)
     }

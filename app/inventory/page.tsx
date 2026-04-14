@@ -184,20 +184,7 @@ export default function InventoryPage() {
   }
 
   const handleEditItem = async (itemId: string, updates: Partial<InventoryItem>) => {
-    try {
-      await updateItem(itemId, updates)
-      toast({
-        title: "Éxito",
-        description: "Elemento actualizado correctamente",
-      })
-      loadInventory()
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar el elemento",
-        variant: "destructive",
-      })
-    }
+    await updateItem(itemId, updates)
   }
 
   const handleMarkAsAvailable = async (item: InventoryItem) => {
