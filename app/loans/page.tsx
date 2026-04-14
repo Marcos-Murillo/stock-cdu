@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { getInventory, getLoans, createLoan, returnLoan, returnLoanGroupPartial } from "@/lib/firebase"
+import { getInventory, getLoans, createLoan, createLoanBatch, returnLoan, returnLoansBatch, returnLoanGroupPartial } from "@/lib/firebase"
 import type { InventoryItem, Loan, CartItem } from "@/lib/types"
 import Navigation from "@/components/navigation"
 import BorrowerAutocomplete from "@/components/borrower-autocomplete"
@@ -194,7 +194,8 @@ export default function LoansPage() {
       const loanDate = new Date(formData.loanDate)
       loanDate.setDate(loanDate.getDate() + 1)
 
-      // Crear un préstamo por cada elemento en el carrito
+      // Construir todos los préstamos del carrito y enviarlos en un solo batch
+      const allLoans: any[] = []
       for (const cartItem of cart) {
         for (const item of cartItem.items) {
           const loanData: any = {
@@ -213,21 +214,14 @@ export default function LoansPage() {
             status: "active",
             loanGroupId: loanGroupId,
           }
-
-          // Solo agregar campos académicos si existen
-          if (formData.borrowerCode) {
-            loanData.borrowerCode = formData.borrowerCode
-          }
-          if (formData.facultad) {
-            loanData.facultad = formData.facultad
-          }
-          if (formData.programa) {
-            loanData.programa = formData.programa
-          }
-
-          await createLoan(loanData)
+          if (formData.borrowerCode) loanData.borrowerCode = formData.borrowerCode
+          if (formData.facultad) loanData.facultad = formData.facultad
+          if (formData.programa) loanData.programa = formData.programa
+          allLoans.push(loanData)
         }
       }
+
+      await createLoanBatch(allLoans)
 
       toast({
         title: "Éxito",
@@ -291,9 +285,7 @@ export default function LoansPage() {
     }
 
     try {
-      for (const loan of groupLoans) {
-        await returnLoan(loan.id!)
-      }
+      await returnLoansBatch(groupLoans.map(l => ({ id: l.id!, itemId: l.itemId })))
       toast({
         title: "Éxito",
         description: `${count} ${count === 1 ? 'elemento devuelto' : 'elementos devueltos'} correctamente`,

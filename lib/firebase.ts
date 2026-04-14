@@ -14,6 +14,7 @@ import {
   where,
   Timestamp,
   increment,
+  writeBatch,
 } from "firebase/firestore"
 import type { InventoryItem, Loan, DamageReport, BorrowerSuggestion, User } from "./types"
 
@@ -106,6 +107,25 @@ export const addItem = async (item: Omit<InventoryItem, "id">) => {
   }
 }
 
+// Batch insert up to 500 items (Firestore batch limit = 500 ops)
+export const addItemsBatch = async (items: Omit<InventoryItem, "id">[]): Promise<void> => {
+  try {
+    for (let i = 0; i < items.length; i += 500) {
+      const chunk = items.slice(i, i + 500)
+      const batch = writeBatch(db)
+      for (const item of chunk) {
+        const ref = doc(collection(db, "inventory"))
+        batch.set(ref, { ...item, createdAt: Timestamp.fromDate(item.createdAt), loanCount: 0 })
+      }
+      await batch.commit()
+    }
+  } catch (error) {
+    console.error("Error adding items batch:", error)
+    if (error instanceof Error) throw new Error(`Error al agregar elementos: ${error.message}`)
+    throw new Error("Error desconocido al agregar elementos")
+  }
+}
+
 export const getInventory = async (): Promise<InventoryItem[]> => {
   try {
     const querySnapshot = await getDocs(query(collection(db, "inventory"), orderBy("createdAt", "desc")))
@@ -188,6 +208,75 @@ export const createLoan = async (loan: Omit<Loan, "id">) => {
   }
 }
 
+// Firestore writeBatch limit is 500 ops. Each loan = 3 ops (loan write + status + loanCount).
+// Max ~166 items per batch — we chunk at 150 to be safe.
+const BATCH_CHUNK = 150
+
+export const createLoanBatch = async (loans: Omit<Loan, "id">[]): Promise<string[]> => {
+  try {
+    const ids: string[] = []
+    const now = Timestamp.now()
+
+    // Process in chunks of BATCH_CHUNK
+    for (let i = 0; i < loans.length; i += BATCH_CHUNK) {
+      const chunk = loans.slice(i, i + BATCH_CHUNK)
+      const batch = writeBatch(db)
+
+      for (const loan of chunk) {
+        const loanRef = doc(collection(db, "loans"))
+        ids.push(loanRef.id)
+        batch.set(loanRef, {
+          ...loan,
+          loanDate: Timestamp.fromDate(loan.loanDate),
+          createdAt: now,
+        })
+        const itemRef = doc(db, "inventory", loan.itemId)
+        batch.update(itemRef, { status: "loaned", loanCount: increment(1) })
+      }
+
+      await batch.commit()
+    }
+
+    return ids
+  } catch (error) {
+    console.error("Error creating loan batch:", error)
+    if (error instanceof Error) throw new Error(`Error al crear préstamos: ${error.message}`)
+    throw new Error("Error desconocido al crear préstamos")
+  }
+}
+
+export const returnLoansBatch = async (
+  groupLoans: { id: string; itemId: string }[],
+  missingItems?: { name: string; missing: number }[]
+): Promise<void> => {
+  try {
+    const now = Timestamp.now()
+
+    for (let i = 0; i < groupLoans.length; i += BATCH_CHUNK) {
+      const chunk = groupLoans.slice(i, i + BATCH_CHUNK)
+      const batch = writeBatch(db)
+
+      for (let j = 0; j < chunk.length; j++) {
+        const loan = chunk[j]
+        const loanRef = doc(db, "loans", loan.id)
+        const updateData: Record<string, unknown> = { status: "returned", returnDate: now }
+        // Attach missingItems only to the very first loan of the first chunk
+        if (i === 0 && j === 0 && missingItems) {
+          updateData.missingItems = missingItems
+        }
+        batch.update(loanRef, updateData)
+        batch.update(doc(db, "inventory", loan.itemId), { status: "available" })
+      }
+
+      await batch.commit()
+    }
+  } catch (error) {
+    console.error("Error returning loans batch:", error)
+    if (error instanceof Error) throw new Error(`Error al procesar devolución: ${error.message}`)
+    throw new Error("Error desconocido al procesar devolución")
+  }
+}
+
 export const getLoans = async (): Promise<Loan[]> => {
   try {
     const querySnapshot = await getDocs(query(collection(db, "loans"), orderBy("loanDate", "desc")))
@@ -206,37 +295,12 @@ export const getLoans = async (): Promise<Loan[]> => {
   }
 }
 
-// Devolución con faltantes: marca todos los préstamos del grupo como devueltos,
-// guarda missingCount y missingNotes en el primer préstamo del grupo
+// Devolución con faltantes: usa batch para procesar todos los préstamos del grupo en paralelo
 export const returnLoanGroupPartial = async (
   groupLoans: { id: string; itemId: string }[],
   missingItems: { name: string; missing: number }[]
 ) => {
-  try {
-    for (let i = 0; i < groupLoans.length; i++) {
-      const loan = groupLoans[i]
-      const loanRef = doc(db, "loans", loan.id)
-      const updateData: {
-        status: string
-        returnDate: ReturnType<typeof Timestamp.now>
-        missingItems?: { name: string; missing: number }[]
-      } = {
-        status: "returned",
-        returnDate: Timestamp.now(),
-      }
-      if (i === 0) {
-        updateData.missingItems = missingItems
-      }
-      await updateDoc(loanRef, updateData)
-      await updateItemStatus(loan.itemId, "available")
-    }
-  } catch (error) {
-    console.error("Error returning loan group partial:", error)
-    if (error instanceof Error) {
-      throw new Error(`Error al procesar devolución parcial: ${error.message}`)
-    }
-    throw new Error("Error desconocido al procesar devolución parcial")
-  }
+  return returnLoansBatch(groupLoans, missingItems)
 }
 
 export const returnLoan = async (loanId: string) => {

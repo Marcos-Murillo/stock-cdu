@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { addItem, getInventory, removeItem, updateItem } from "@/lib/firebase"
+import { addItem, addItemsBatch, getInventory, removeItem, updateItem } from "@/lib/firebase"
 import type { InventoryItem } from "@/lib/types"
 import Navigation from "@/components/navigation"
 import DamageReportModal from "@/components/damage-report-modal"
@@ -99,10 +99,10 @@ export default function InventoryPage() {
       return
     }
 
-    if (formData.quantity < 1 || formData.quantity > 100) {
+    if (formData.quantity < 1 || formData.quantity > 500) {
       toast({
         title: "Error",
-        description: "La cantidad debe estar entre 1 y 100",
+        description: "La cantidad debe estar entre 1 y 500",
         variant: "destructive",
       })
       return
@@ -140,10 +140,8 @@ export default function InventoryPage() {
         })
       }
 
-      // Agregar todos los elementos
-      for (const item of itemsToAdd) {
-        await addItem(item)
-      }
+      // Agregar todos los elementos en batch
+      await addItemsBatch(itemsToAdd)
 
       toast({
         title: "Éxito",
@@ -298,7 +296,7 @@ export default function InventoryPage() {
                       id="quantity"
                       type="number"
                       min="1"
-                      max="100"
+                      max="500"
                       value={formData.quantity}
                       onChange={(e) => {
                         const value = e.target.value
@@ -321,7 +319,7 @@ export default function InventoryPage() {
                       required
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Número de elementos idénticos a agregar (máx. 100)
+                      Número de elementos idénticos a agregar (máx. 500)
                     </p>
                   </div>
                   <div>
