@@ -145,7 +145,6 @@ export default function EditItemModal({ item, groupItems, isOpen, onClose, onSav
                 id="edit-quantity"
                 type="number"
                 min={currentQty - availableCount}
-                max={200}
                 value={formData.quantity}
                 onChange={(e) => {
                   const val = parseInt(e.target.value)
