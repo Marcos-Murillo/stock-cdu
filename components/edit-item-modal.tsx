@@ -16,7 +16,7 @@ interface EditItemModalProps {
   isOpen: boolean
   onClose: () => void
   onSave: (itemId: string, updates: Partial<InventoryItem>) => Promise<void>
-  onRefresh?: () => void
+  onRefresh?: () => Promise<void> | void
 }
 
 export default function EditItemModal({ item, groupItems, isOpen, onClose, onSave, onRefresh }: EditItemModalProps) {
@@ -52,6 +52,18 @@ export default function EditItemModal({ item, groupItems, isOpen, onClose, onSav
       const currentItems = groupItems ?? [item]
       const currentQty = currentItems.length
       const newQty = formData.quantity
+      const maxAllowed = 500
+
+      if (newQty < currentQty - availableCount) {
+        toast({ title: "Error", description: `No puedes bajar de ${currentQty - availableCount} (hay items prestados)`, variant: "destructive" })
+        setLoading(false)
+        return
+      }
+      if (newQty > maxAllowed) {
+        toast({ title: "Error", description: `El total no puede superar ${maxAllowed}. Actualmente tienes ${currentQty}, puedes agregar hasta ${maxAllowed - currentQty} más.`, variant: "destructive" })
+        setLoading(false)
+        return
+      }
 
       await Promise.all(currentItems.map((gi) => {
         const updates: Partial<InventoryItem> = { name: formData.name, description: formData.description }
@@ -81,7 +93,7 @@ export default function EditItemModal({ item, groupItems, isOpen, onClose, onSav
       }
 
       toast({ title: "Éxito", description: "Elemento actualizado correctamente" })
-      onRefresh?.()
+      await onRefresh?.()
       onClose()
     } catch (error) {
       console.error("Error updating item:", error)
@@ -142,6 +154,7 @@ export default function EditItemModal({ item, groupItems, isOpen, onClose, onSav
                 id="edit-quantity"
                 type="number"
                 min={currentQty - availableCount}
+                max={500}
                 value={formData.quantity}
                 onChange={(e) => {
                   const val = parseInt(e.target.value)
@@ -149,7 +162,7 @@ export default function EditItemModal({ item, groupItems, isOpen, onClose, onSav
                 }}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Actual: {currentQty} · {availableCount} disponibles para eliminar
+                Actual: {currentQty} · {availableCount} disponibles para eliminar · máx. {500 - currentQty} se pueden agregar
               </p>
             </div>
           </div>

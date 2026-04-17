@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Plus, Search, Trash2, AlertTriangle, MoreVertical, Edit, CheckCircle } from "lucide-react"
+import { Plus, Search, Trash2, AlertTriangle, MoreVertical, Edit, CheckCircle, Scissors } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -212,6 +212,34 @@ export default function InventoryPage() {
     }
   }
 
+  const handleTrimExcess = async (groupItems: InventoryItem[]) => {
+    const MAX = 500
+    const excess = groupItems.length - MAX
+    if (excess <= 0) return
+
+    if (!confirm(`Este grupo tiene ${groupItems.length} elementos (${excess} de excedente). ¿Eliminar los ${excess} excedentes disponibles?`)) return
+
+    const available = groupItems.filter((i) => i.status === "available")
+    const toDelete = available.slice(0, excess)
+
+    if (toDelete.length < excess) {
+      toast({
+        title: "Advertencia",
+        description: `Solo se pueden eliminar ${toDelete.length} de ${excess} excedentes (el resto está prestado).`,
+        variant: "destructive",
+      })
+      if (toDelete.length === 0) return
+    }
+
+    try {
+      await Promise.all(toDelete.map((i) => removeItem(i.id!)))
+      toast({ title: "Éxito", description: `${toDelete.length} elementos excedentes eliminados` })
+      loadInventory()
+    } catch {
+      toast({ title: "Error", description: "No se pudieron eliminar los excedentes", variant: "destructive" })
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "available":
@@ -413,7 +441,19 @@ export default function InventoryPage() {
                           )}
                         </td>
                         <td className="py-3 px-4">{getStatusBadge(row.status)}</td>
-                        <td className="py-3 px-4 text-center font-semibold text-blue-700">{row.items.length}</td>
+                        <td className="py-3 px-4 text-center font-semibold text-blue-700">
+                          <span className={row.items.length > 500 ? "text-red-600" : ""}>{row.items.length}</span>
+                          {row.items.length > 500 && (
+                            <button
+                              onClick={() => handleTrimExcess(row.items)}
+                              title={`Eliminar ${row.items.length - 500} excedentes`}
+                              className="ml-2 inline-flex items-center gap-1 text-xs text-red-600 border border-red-300 rounded px-1.5 py-0.5 hover:bg-red-50 transition-colors"
+                            >
+                              <Scissors className="w-3 h-3" />
+                              -{row.items.length - 500}
+                            </button>
+                          )}
+                        </td>
                         <td className="py-3 px-4 text-center">
                           <DropdownMenu
                             trigger={
