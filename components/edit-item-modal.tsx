@@ -80,7 +80,7 @@ export default function EditItemModal({ item, groupItems, isOpen, onClose, onSav
             name: formData.name,
             serialNumber: `${item.serialNumber.replace(/-\d+$/, "")}-${String(idx).padStart(2, "0")}`,
             description: formData.description,
-            location: formData.location || undefined,
+            ...(formData.location ? { location: formData.location } : {}),
             status: "available",
             createdAt: new Date(),
           })

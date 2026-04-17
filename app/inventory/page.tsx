@@ -134,7 +134,7 @@ export default function InventoryPage() {
           name: formData.name,
           serialNumber: serialNumber,
           description: formData.description,
-          location: formData.location || undefined,
+          ...(formData.location ? { location: formData.location } : {}),
           status: "available" as const,
           createdAt: new Date(),
         })
