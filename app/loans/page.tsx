@@ -190,9 +190,7 @@ export default function LoansPage() {
       // Generar un ID único para agrupar todos los préstamos
       const loanGroupId = `${Date.now()}-${formData.borrowerDocument}`
 
-      // Corregir la fecha sumando un día para compensar la zona horaria
-      const loanDate = new Date(formData.loanDate)
-      loanDate.setDate(loanDate.getDate() + 1)
+      const loanDate = new Date()
 
       // Construir todos los préstamos del carrito y enviarlos en un solo batch
       const allLoans: any[] = []
@@ -587,7 +585,13 @@ export default function LoansPage() {
                                 </div>
                                 <div className="text-sm text-gray-600 space-y-1">
                                   <p>Estamento: {firstLoan.estamento}</p>
-                                  <p>Fecha: {firstLoan.loanDate.toLocaleDateString()}</p>
+                                  <p>
+                                    Préstamo:{' '}
+                                    {firstLoan.loanDate.toLocaleString('es-CO', {
+                                      dateStyle: 'short',
+                                      timeStyle: 'short',
+                                    })}
+                                  </p>
                                   {firstLoan.facultad && <p className="truncate">Facultad: {firstLoan.facultad}</p>}
                                 </div>
                               </div>

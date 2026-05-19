@@ -40,7 +40,16 @@ export interface Loan {
   notes?: string
   loanGroupId?: string
   // Devolución parcial: detalle de implementos no entregados por tipo
-  missingItems?: { name: string; missing: number }[]
+  missingItems?: MissingItemRecord[]
+  /** Cuando todos los faltantes fueron devueltos */
+  missingResolvedAt?: Date
+}
+
+export interface MissingItemRecord {
+  name: string
+  missing: number
+  /** Unidades del faltante ya devueltas después */
+  returned?: number
 }
 
 export interface DamageReport {

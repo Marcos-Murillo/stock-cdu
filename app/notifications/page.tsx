@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { AlertTriangle, Clock, AlertCircle, Bell, Package, User, Phone } from "lucide-react"
+import { AlertTriangle, Clock, AlertCircle, Bell, Package, User, Phone, Mail } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -275,6 +275,12 @@ export default function NotificationsPage() {
                               <div className="flex items-center gap-2 text-sm text-gray-600">
                                 <span>Cédula: {firstNotif.borrowerDocument}</span>
                               </div>
+                              {firstNotif.loan.borrowerEmail && (
+                                <div className="flex items-center gap-2 text-sm text-gray-600">
+                                  <Mail className="w-4 h-4" />
+                                  <span>{firstNotif.loan.borrowerEmail}</span>
+                                </div>
+                              )}
                               {firstNotif.loan.borrowerPhone && (
                                 <div className="flex items-center gap-2 text-sm text-gray-600">
                                   <Phone className="w-4 h-4" />
@@ -285,7 +291,11 @@ export default function NotificationsPage() {
                             
                             <div className="space-y-2">
                               <div className="text-sm text-gray-600">
-                                Fecha préstamo: {firstNotif.loan.loanDate.toLocaleDateString()}
+                                Préstamo:{' '}
+                                {firstNotif.loan.loanDate.toLocaleString('es-CO', {
+                                  dateStyle: 'short',
+                                  timeStyle: 'short',
+                                })}
                               </div>
                               <div className="text-sm font-bold text-red-600">
                                 {maxAlertLevel.daysOverdue} {maxAlertLevel.daysOverdue === 1 ? 'día' : 'días'} prestado

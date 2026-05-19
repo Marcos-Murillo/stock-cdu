@@ -261,7 +261,15 @@ export const returnLoansBatch = async (
         const loanRef = doc(db, "loans", loan.id)
         // Attach missingItems only to the very first loan of the first chunk
         if (i === 0 && j === 0 && missingItems) {
-          batch.update(loanRef, { status: "returned", returnDate: now, missingItems })
+          const itemsWithReturned = missingItems.map((mi) => ({
+            ...mi,
+            returned: mi.returned ?? 0,
+          }))
+          batch.update(loanRef, {
+            status: "returned",
+            returnDate: now,
+            missingItems: itemsWithReturned,
+          })
         } else {
           batch.update(loanRef, { status: "returned", returnDate: now })
         }
@@ -277,15 +285,26 @@ export const returnLoansBatch = async (
   }
 }
 
+function mapLoanDoc(docSnap: { id: string; data: () => Record<string, unknown> }): Loan {
+  const data = docSnap.data()
+  return {
+    id: docSnap.id,
+    ...data,
+    loanDate: (data.loanDate as { toDate: () => Date }).toDate(),
+    returnDate: data.returnDate
+      ? (data.returnDate as { toDate: () => Date }).toDate()
+      : undefined,
+    missingResolvedAt: data.missingResolvedAt
+      ? (data.missingResolvedAt as { toDate: () => Date }).toDate()
+      : undefined,
+    missingItems: data.missingItems as Loan['missingItems'],
+  } as Loan
+}
+
 export const getLoans = async (): Promise<Loan[]> => {
   try {
     const querySnapshot = await getDocs(query(collection(db, "loans"), orderBy("loanDate", "desc")))
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      loanDate: doc.data().loanDate.toDate(),
-      returnDate: doc.data().returnDate ? doc.data().returnDate.toDate() : undefined,
-    })) as Loan[]
+    return querySnapshot.docs.map((d) => mapLoanDoc(d))
   } catch (error) {
     console.error("Error getting loans:", error)
     if (error instanceof Error) {
@@ -301,6 +320,54 @@ export const returnLoanGroupPartial = async (
   missingItems: { name: string; missing: number }[]
 ) => {
   return returnLoansBatch(groupLoans, missingItems)
+}
+
+/** Devuelve implementos que faltaban en un préstamo ya cerrado con faltantes */
+export const returnMissingItems = async (
+  loanId: string,
+  returnedItems: { name: string; quantity: number }[],
+): Promise<void> => {
+  try {
+    const loanRef = doc(db, "loans", loanId)
+    const loanSnap = await getDoc(loanRef)
+
+    if (!loanSnap.exists()) {
+      throw new Error("Préstamo no encontrado")
+    }
+
+    const data = loanSnap.data()
+    const current = (data.missingItems ?? []) as Loan["missingItems"]
+
+    if (!current?.length) {
+      throw new Error("Este préstamo no tiene faltantes registrados")
+    }
+
+    const updated = current.map((mi) => {
+      const entry = returnedItems.find((r) => r.name === mi.name)
+      if (!entry || entry.quantity <= 0) return mi
+      const already = mi.returned ?? 0
+      const pending = mi.missing - already
+      const add = Math.min(entry.quantity, pending)
+      return { ...mi, returned: already + add }
+    })
+
+    const allResolved = updated.every(
+      (mi) => mi.missing - (mi.returned ?? 0) <= 0,
+    )
+
+    const payload: Record<string, unknown> = { missingItems: updated }
+    if (allResolved) {
+      payload.missingResolvedAt = Timestamp.now()
+    }
+
+    await updateDoc(loanRef, payload)
+  } catch (error) {
+    console.error("Error returning missing items:", error)
+    if (error instanceof Error) {
+      throw new Error(`Error al registrar devolución de faltantes: ${error.message}`)
+    }
+    throw new Error("Error desconocido al registrar devolución de faltantes")
+  }
 }
 
 export const returnLoan = async (loanId: string) => {
