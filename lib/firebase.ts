@@ -262,8 +262,9 @@ export const returnLoansBatch = async (
         // Attach missingItems only to the very first loan of the first chunk
         if (i === 0 && j === 0 && missingItems) {
           const itemsWithReturned = missingItems.map((mi) => ({
-            ...mi,
-            returned: mi.returned ?? 0,
+            name: mi.name,
+            missing: mi.missing,
+            returned: 0,
           }))
           batch.update(loanRef, {
             status: "returned",
@@ -355,12 +356,14 @@ export const returnMissingItems = async (
       (mi) => mi.missing - (mi.returned ?? 0) <= 0,
     )
 
-    const payload: Record<string, unknown> = { missingItems: updated }
     if (allResolved) {
-      payload.missingResolvedAt = Timestamp.now()
+      await updateDoc(loanRef, {
+        missingItems: updated,
+        missingResolvedAt: Timestamp.now(),
+      })
+    } else {
+      await updateDoc(loanRef, { missingItems: updated })
     }
-
-    await updateDoc(loanRef, payload)
   } catch (error) {
     console.error("Error returning missing items:", error)
     if (error instanceof Error) {

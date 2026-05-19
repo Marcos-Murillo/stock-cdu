@@ -66,9 +66,11 @@ export default function ReturnMissingDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-green-700">
-            <Package className="w-5 h-5" />
-            Devolver faltantes
+          <DialogTitle>
+            <span className="flex items-center gap-2 text-green-700">
+              <Package className="w-5 h-5" />
+              Devolver faltantes
+            </span>
           </DialogTitle>
         </DialogHeader>
 

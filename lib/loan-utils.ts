@@ -66,9 +66,9 @@ export function buildLoanGroupSummaries(loans: Loan[]): LoanGroupSummary[] {
         ? new Date(Math.max(...returnDates.map((d) => d.getTime())))
         : undefined
 
-    const itemNames = [
-      ...new Set(groupLoans.map((l) => l.itemName).filter(Boolean)),
-    ]
+    const itemNames = Array.from(
+      new Set(groupLoans.map((l) => l.itemName).filter(Boolean)),
+    )
 
     const hadMissing = Boolean(primaryLoan.missingItems?.length)
     const missingResolved =
