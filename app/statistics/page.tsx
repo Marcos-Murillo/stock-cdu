@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { BarChart3, TrendingUp, AlertTriangle, Package, FileText, ChevronDown, ChevronUp } from "lucide-react"
+import { BarChart3, TrendingUp, AlertTriangle, Package, FileText, FileSpreadsheet, ChevronDown, ChevronUp } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -9,6 +9,7 @@ import { getDetailedStats, getDamageReports, getLoans } from "@/lib/firebase"
 import type { DamageReport, Loan } from "@/lib/types"
 import Navigation from "@/components/navigation"
 import { RouteGuard } from "@/components/route-guard"
+import { exportStockStatisticsExcel } from "@/lib/excel-export"
 
 interface ItemStat {
   id?: string
@@ -53,6 +54,17 @@ export default function StatisticsPage() {
       console.error("Error loading stats:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const exportExcel = async () => {
+    if (!stats) return
+    try {
+      const loans = await getLoans()
+      exportStockStatisticsExcel(stats, loans)
+    } catch (error) {
+      console.error("Error exporting Excel:", error)
+      alert("Error al exportar Excel")
     }
   }
 
@@ -550,10 +562,16 @@ export default function StatisticsPage() {
             <h1 className="text-3xl font-bold text-blue-800 mb-2">Estadísticas Detalladas</h1>
             <p className="text-blue-700">Análisis completo del uso del inventario deportivo</p>
           </div>
-          <Button onClick={generateReport} className="bg-blue-600 hover:bg-blue-700">
-            <FileText className="w-4 h-4 mr-2" />
-            Generar Reporte General
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={exportExcel} variant="outline" className="border-blue-300 text-blue-800 hover:bg-blue-50">
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Exportar Excel
+            </Button>
+            <Button onClick={generateReport} className="bg-blue-600 hover:bg-blue-700">
+              <FileText className="w-4 h-4 mr-2" />
+              Generar Reporte General
+            </Button>
+          </div>
         </div>
 
         {/* Resumen General */}
