@@ -38,6 +38,8 @@ export interface Loan {
   etnia?: string
   sede?: string
   estamento?: string
+  /** Edad al momento del préstamo (opcional) */
+  borrowerAge?: number
   loanDate: Date
   returnDate?: Date
   status: "active" | "returned"

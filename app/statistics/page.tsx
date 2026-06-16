@@ -9,7 +9,15 @@ import { getDetailedStats, getDamageReports, getLoans } from "@/lib/firebase"
 import type { DamageReport, Loan } from "@/lib/types"
 import Navigation from "@/components/navigation"
 import { RouteGuard } from "@/components/route-guard"
-import { exportStockStatisticsExcel } from "@/lib/excel-export"
+import { exportStockStatisticsExcel, STOCK_EXCEL_OPTIONAL_COLUMNS } from "@/lib/excel-export"
+import { ExcelColumnSelector } from "@/components/excel-column-selector"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { GENEROS } from "@/lib/data"
 
 interface ItemStat {
@@ -42,6 +50,8 @@ export default function StatisticsPage() {
   const [showOnlyActive, setShowOnlyActive] = useState(false)
   const [showFacultadTable, setShowFacultadTable] = useState(false)
   const [showProgramaTable, setShowProgramaTable] = useState(false)
+  const [excelDialogOpen, setExcelDialogOpen] = useState(false)
+  const [excelLoading, setExcelLoading] = useState(false)
 
   useEffect(() => {
     loadStats()
@@ -58,14 +68,18 @@ export default function StatisticsPage() {
     }
   }
 
-  const exportExcel = async () => {
+  const handleDownloadExcel = async (selectedColumns: string[]) => {
     if (!stats) return
+    setExcelLoading(true)
     try {
       const loans = await getLoans()
-      exportStockStatisticsExcel(stats, loans)
+      exportStockStatisticsExcel(stats, loans, selectedColumns)
+      setExcelDialogOpen(false)
     } catch (error) {
       console.error("Error exporting Excel:", error)
       alert("Error al exportar Excel")
+    } finally {
+      setExcelLoading(false)
     }
   }
 
@@ -564,7 +578,11 @@ export default function StatisticsPage() {
             <p className="text-blue-700">Análisis completo del uso del inventario deportivo</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={exportExcel} variant="outline" className="border-blue-300 text-blue-800 hover:bg-blue-50">
+            <Button
+              onClick={() => setExcelDialogOpen(true)}
+              variant="outline"
+              className="border-blue-300 text-blue-800 hover:bg-blue-50"
+            >
               <FileSpreadsheet className="w-4 h-4 mr-2" />
               Exportar Excel
             </Button>
@@ -973,6 +991,22 @@ export default function StatisticsPage() {
         </Card>
       </div>
     </div>
+
+    <Dialog open={excelDialogOpen} onOpenChange={setExcelDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Exportar Excel</DialogTitle>
+          <DialogDescription>
+            Elige las columnas de contacto y demografía para incluir en las hojas de préstamos.
+          </DialogDescription>
+        </DialogHeader>
+        <ExcelColumnSelector
+          availableColumns={STOCK_EXCEL_OPTIONAL_COLUMNS}
+          onDownload={handleDownloadExcel}
+          disabled={excelLoading}
+        />
+      </DialogContent>
+    </Dialog>
     </RouteGuard>
   )
 }
