@@ -212,6 +212,21 @@ export const PROGRAMAS_POR_FACULTAD: Record<string, string[]> = {
 
 export const GENEROS = ["MUJER", "HOMBRE", "OTRO"] as const
 
+export const ITEM_CONDITIONS = [
+  { value: "bueno" as const, label: "Bueno" },
+  { value: "regular" as const, label: "Regular" },
+  { value: "para_cambio" as const, label: "Para cambio" },
+]
+
+export function getItemConditionLabel(condition?: string): string {
+  return ITEM_CONDITIONS.find((c) => c.value === condition)?.label ?? "Bueno"
+}
+
+export function normalizeItemCondition(condition?: string): "bueno" | "regular" | "para_cambio" {
+  if (condition === "regular" || condition === "para_cambio") return condition
+  return "bueno"
+}
+
 export const ETNIAS = [
   "AFRO",
   "GITANO O ROM",

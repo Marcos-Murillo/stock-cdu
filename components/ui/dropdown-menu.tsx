@@ -57,3 +57,15 @@ export function DropdownMenuItem({ onClick, children, variant = "default" }: Dro
     </button>
   )
 }
+
+export function DropdownMenuLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="px-4 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+      {children}
+    </div>
+  )
+}
+
+export function DropdownMenuSeparator() {
+  return <div className="my-1 border-t border-gray-100" />
+}

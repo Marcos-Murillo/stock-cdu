@@ -7,12 +7,16 @@ export interface StockUser {
   role: UserRole
 }
 
+export type ItemCondition = "bueno" | "regular" | "para_cambio"
+
 export interface InventoryItem {
   id?: string
   name: string
   serialNumber: string
   description: string
   status: "available" | "loaned" | "removed"
+  /** Estado físico del implemento (default: bueno) */
+  condition?: ItemCondition
   createdAt: Date
   loanCount?: number
   location?: string

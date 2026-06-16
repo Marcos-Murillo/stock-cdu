@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Plus, Search, Trash2, AlertTriangle, MoreVertical, Edit, CheckCircle, Scissors } from "lucide-react"
+import { Plus, Search, Trash2, AlertTriangle, MoreVertical, Edit, CheckCircle, Scissors, FileText } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,12 +12,14 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { addItem, addItemsBatch, getInventory, removeItem, updateItem } from "@/lib/firebase"
-import type { InventoryItem } from "@/lib/types"
+import type { InventoryItem, ItemCondition } from "@/lib/types"
 import Navigation from "@/components/navigation"
 import DamageReportModal from "@/components/damage-report-modal"
 import EditItemModal from "@/components/edit-item-modal"
-import { DropdownMenu, DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { RouteGuard } from "@/components/route-guard"
+import { ITEM_CONDITIONS, getItemConditionLabel } from "@/lib/data"
+import { generateInventoryArqueoPDF } from "@/lib/inventory-arqueo-pdf"
 
 const PAGE_SIZE = 10
 
@@ -60,16 +62,17 @@ export default function InventoryPage() {
     setCurrentPage(1)
   }, [items, searchTerm, locationFilter])
 
-  // Agrupar items por nombre + ubicación + estado
+  // Agrupar items por nombre + ubicación + estado + condición física
   const groupedRows = Object.values(
     filteredItems.reduce((acc, item) => {
-      const key = `${item.name}||${item.location || ""}||${item.status}`
+      const condition = item.condition ?? "bueno"
+      const key = `${item.name}||${item.location || ""}||${item.status}||${condition}`
       if (!acc[key]) {
-        acc[key] = { name: item.name, location: item.location, status: item.status, items: [] }
+        acc[key] = { name: item.name, location: item.location, status: item.status, condition, items: [] }
       }
       acc[key].items.push(item)
       return acc
-    }, {} as Record<string, { name: string; location?: string; status: string; items: InventoryItem[] }>)
+    }, {} as Record<string, { name: string; location?: string; status: string; condition: ItemCondition; items: InventoryItem[] }>)
   )
 
   const totalPages = Math.ceil(groupedRows.length / PAGE_SIZE)
@@ -136,6 +139,7 @@ export default function InventoryPage() {
           description: formData.description,
           ...(formData.location ? { location: formData.location } : {}),
           status: "available" as const,
+          condition: "bueno" as const,
           createdAt: new Date(),
         })
       }
@@ -240,6 +244,47 @@ export default function InventoryPage() {
     }
   }
 
+  const handleSetCondition = async (groupItems: InventoryItem[], condition: ItemCondition) => {
+    try {
+      await Promise.all(groupItems.map((i) => updateItem(i.id!, { condition })))
+      toast({
+        title: "Estado actualizado",
+        description: `${groupItems.length} elemento(s) marcado(s) como ${getItemConditionLabel(condition)}`,
+      })
+      loadInventory()
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado del implemento",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDownloadArqueo = () => {
+    try {
+      generateInventoryArqueoPDF(items)
+      toast({ title: "Reporte generado", description: "Arqueo de implementos descargado en PDF" })
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudo generar el reporte PDF",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const getConditionBadge = (condition: ItemCondition) => {
+    switch (condition) {
+      case "bueno":
+        return <Badge className="bg-green-100 text-green-800 border-green-200">Bueno</Badge>
+      case "regular":
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Regular</Badge>
+      case "para_cambio":
+        return <Badge className="bg-red-100 text-red-800 border-red-200">Para cambio</Badge>
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "available":
@@ -262,12 +307,22 @@ export default function InventoryPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
       <Navigation />
       <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-8 gap-4 flex-wrap">
           <h1 className="text-3xl font-bold text-blue-800">Inventario</h1>
-          <Button onClick={() => setShowAddForm(!showAddForm)} className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="w-4 h-4 mr-2" />
-            Agregar Elemento
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleDownloadArqueo}
+              className="border-blue-300 text-blue-700 hover:bg-blue-50"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Reporte total (PDF)
+            </Button>
+            <Button onClick={() => setShowAddForm(!showAddForm)} className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="w-4 h-4 mr-2" />
+              Agregar Elemento
+            </Button>
+          </div>
         </div>
 
         {showAddForm && (
@@ -412,6 +467,7 @@ export default function InventoryPage() {
                   <tr className="border-b border-blue-200 bg-blue-50">
                     <th className="text-left py-3 px-4 font-semibold text-blue-800">Elemento</th>
                     <th className="text-left py-3 px-4 font-semibold text-blue-800">Ubicación</th>
+                    <th className="text-left py-3 px-4 font-semibold text-blue-800">Disponibilidad</th>
                     <th className="text-left py-3 px-4 font-semibold text-blue-800">Estado</th>
                     <th className="text-center py-3 px-4 font-semibold text-blue-800">Cantidad</th>
                     <th className="text-center py-3 px-4 font-semibold text-blue-800">Acciones</th>
@@ -420,14 +476,14 @@ export default function InventoryPage() {
                 <tbody>
                   {paginatedRows.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center py-10 text-gray-500">
+                      <td colSpan={6} className="text-center py-10 text-gray-500">
                         {searchTerm ? "No se encontraron elementos" : "No hay elementos en el inventario"}
                       </td>
                     </tr>
                   ) : (
                     paginatedRows.map((row, idx) => (
                       <tr
-                        key={`${row.name}-${row.location}-${row.status}-${idx}`}
+                        key={`${row.name}-${row.location}-${row.status}-${row.condition}-${idx}`}
                         className="border-b border-gray-100 hover:bg-blue-50/40 transition-colors"
                       >
                         <td className="py-3 px-4 font-medium text-blue-800">{row.name}</td>
@@ -441,6 +497,7 @@ export default function InventoryPage() {
                           )}
                         </td>
                         <td className="py-3 px-4">{getStatusBadge(row.status)}</td>
+                        <td className="py-3 px-4">{getConditionBadge(row.condition)}</td>
                         <td className="py-3 px-4 text-center font-semibold text-blue-700">
                           <span className={row.items.length > 500 ? "text-red-600" : ""}>{row.items.length}</span>
                           {row.items.length > 500 && (
@@ -469,6 +526,18 @@ export default function InventoryPage() {
                               <Edit className="w-4 h-4 mr-2" />
                               Editar
                             </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuLabel>Estado</DropdownMenuLabel>
+                            {ITEM_CONDITIONS.map((c) => (
+                              <DropdownMenuItem
+                                key={c.value}
+                                onClick={() => handleSetCondition(row.items, c.value)}
+                              >
+                                {row.condition === c.value ? "✓ " : ""}
+                                {c.label}
+                              </DropdownMenuItem>
+                            ))}
+                            <DropdownMenuSeparator />
                             {row.status === "loaned" && (
                               <DropdownMenuItem onClick={() => handleMarkAsAvailable(row.items[0])}>
                                 <CheckCircle className="w-4 h-4 mr-2" />

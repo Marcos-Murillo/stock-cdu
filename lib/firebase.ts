@@ -129,11 +129,15 @@ export const addItemsBatch = async (items: Omit<InventoryItem, "id">[]): Promise
 export const getInventory = async (): Promise<InventoryItem[]> => {
   try {
     const querySnapshot = await getDocs(query(collection(db, "inventory"), orderBy("createdAt", "desc")))
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt.toDate(),
-    })) as InventoryItem[]
+    return querySnapshot.docs.map((doc) => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        ...data,
+        condition: data.condition ?? "bueno",
+        createdAt: data.createdAt.toDate(),
+      }
+    }) as InventoryItem[]
   } catch (error) {
     console.error("Error getting inventory:", error)
     if (error instanceof Error) {

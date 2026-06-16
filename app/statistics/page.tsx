@@ -10,6 +10,7 @@ import type { DamageReport, Loan } from "@/lib/types"
 import Navigation from "@/components/navigation"
 import { RouteGuard } from "@/components/route-guard"
 import { exportStockStatisticsExcel } from "@/lib/excel-export"
+import { GENEROS } from "@/lib/data"
 
 interface ItemStat {
   id?: string
@@ -328,19 +329,19 @@ export default function StatisticsPage() {
             </tr>
           </thead>
           <tbody>
-            ${Object.entries(stats.generoStats)
-              .sort(([, a], [, b]) => b.totalLoans - a.totalLoans)
-              .map(
-                ([genero, data]) => `
+            ${GENEROS.map(
+              (genero) => {
+                const data = stats.generoStats[genero] ?? { totalLoans: 0, activeLoans: 0, returnedLoans: 0 }
+                return `
               <tr>
                 <td>${genero}</td>
                 <td style="text-align: center;"><strong>${data.totalLoans}</strong></td>
                 <td style="text-align: center;">${data.activeLoans}</td>
                 <td style="text-align: center;">${data.returnedLoans}</td>
               </tr>
-            `,
-              )
-              .join("")}
+            `
+              },
+            ).join("")}
           </tbody>
         </table>
 
@@ -619,9 +620,9 @@ export default function StatisticsPage() {
 
         {/* Estadísticas por Género */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
-          {Object.entries(stats.generoStats)
-            .sort(([, a], [, b]) => b.totalLoans - a.totalLoans)
-            .map(([genero, data]) => (
+          {GENEROS.map((genero) => {
+            const data = stats.generoStats[genero] ?? { totalLoans: 0, activeLoans: 0, returnedLoans: 0 }
+            return (
               <Card key={genero} className="border-blue-200">
                 <CardHeader>
                   <CardTitle className="text-blue-800">Préstamos - {genero}</CardTitle>
@@ -643,7 +644,8 @@ export default function StatisticsPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            )
+          })}
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6 mb-8">
